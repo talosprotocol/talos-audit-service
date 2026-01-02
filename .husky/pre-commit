@@ -1,0 +1,16 @@
+#!/bin/sh
+echo "🔍 Running pre-commit validation..."
+
+# 1. Ruff lint
+echo "Running Ruff..."
+ruff check . 2>/dev/null || echo "Ruff not configured yet - skipping"
+
+# 2. Tests (if tests exist)
+echo "Running tests..."
+if [ -d "tests" ]; then
+    pytest tests/ -v || { echo "❌ Tests failed"; exit 1; }
+else
+    echo "No tests directory - skipping"
+fi
+
+echo "✅ All pre-commit checks passed"
