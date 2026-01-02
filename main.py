@@ -5,7 +5,7 @@ Provides REST API for audit log queries and analytics.
 
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 import time
 
 from bootstrap import get_app_container
@@ -21,6 +21,7 @@ app = FastAPI(
 
 class StatsResponse(BaseModel):
     """Response model for audit statistics."""
+
     count: int
     window_start: float
     window_end: float
@@ -40,9 +41,9 @@ def list_events(
     """List audit events with pagination."""
     container = get_app_container()
     audit_store = container.resolve(IAuditStorePort)
-    
+
     page = audit_store.list(before=before, limit=limit)
-    
+
     return {
         "events": [
             {
@@ -65,10 +66,10 @@ def get_stats(
     """Get audit event statistics for a time window."""
     container = get_app_container()
     audit_store = container.resolve(IAuditStorePort)
-    
+
     window = TimeWindow(start=start, end=end)
     stats = audit_store.stats(window)
-    
+
     return StatsResponse(
         count=stats.count,
         window_start=start,

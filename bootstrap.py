@@ -13,12 +13,12 @@ from talos_sdk.adapters.hash import NativeHashAdapter
 def bootstrap() -> Container:
     """Initialize the DI container with default adapters."""
     container = get_container()
-    
+
     # Register adapters
     # Note: In production, replace InMemoryAuditStore with SQLAlchemy adapter
     container.register(IAuditStorePort, InMemoryAuditStore())
     container.register(IHashPort, NativeHashAdapter())
-    
+
     return container
 
 
