@@ -1,0 +1,20 @@
+[project]
+name = "talos-audit-service"
+version = "0.1.3"
+description = "Talos Protocol Audit Log Service"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "alembic",
+    "talos-sdk-py @ git+https://github.com/talosprotocol/talos-sdk-py.git"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
