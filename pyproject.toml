@@ -1,6 +1,6 @@
 [project]
 name = "talos-audit-service"
-version = "0.1.5"
+version = "0.1.6"
 description = "Talos Protocol Audit Log Service"
 requires-python = ">=3.10"
 dependencies = [
