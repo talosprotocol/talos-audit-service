@@ -14,7 +14,7 @@ if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
 fi
 
 echo "Starting $SERVICE_NAME on port $PORT..."
-uvicorn main:app --port "$PORT" --host 127.0.0.1 > "/tmp/${SERVICE_NAME}.log" 2>&1 &
+uvicorn main:app --port "$PORT" --host 0.0.0.0 > "/tmp/${SERVICE_NAME}.log" 2>&1 &
 echo $! > "$PID_FILE"
 sleep 2
 
