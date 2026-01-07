@@ -27,14 +27,14 @@ class TestBootstrap:
 
     def test_get_app_container_returns_container(self):
         """Container is created on first call."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
 
         container = get_app_container()
         assert container is not None
 
     def test_container_singleton(self):
         """Same container instance is reused."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
 
         c1 = get_app_container()
         c2 = get_app_container()
@@ -42,7 +42,7 @@ class TestBootstrap:
 
     def test_audit_store_registered(self):
         """IAuditStorePort is registered."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.audit_store import IAuditStorePort
 
         container = get_app_container()
@@ -51,7 +51,7 @@ class TestBootstrap:
 
     def test_hash_port_registered(self):
         """IHashPort is registered."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.hash import IHashPort
 
         container = get_app_container()
@@ -64,7 +64,7 @@ class TestAuditStore:
 
     def test_append_event(self):
         """Can append an event to the store."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.audit_store import IAuditStorePort
 
         container = get_app_container()
@@ -80,7 +80,7 @@ class TestAuditStore:
 
     def test_list_events(self):
         """Can list events from the store."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.audit_store import IAuditStorePort
 
         container = get_app_container()
@@ -92,7 +92,7 @@ class TestAuditStore:
 
     def test_list_with_cursor(self):
         """List supports cursor for pagination."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.audit_store import IAuditStorePort
 
         container = get_app_container()
@@ -112,7 +112,7 @@ class TestHashPort:
 
     def test_canonical_hash_deterministic(self):
         """Hash is deterministic for same input."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.hash import IHashPort
 
         container = get_app_container()
@@ -126,7 +126,7 @@ class TestHashPort:
 
     def test_canonical_hash_key_order_invariant(self):
         """Hash ignores key ordering."""
-        from bootstrap import get_app_container
+        from src.bootstrap import get_app_container
         from talos_sdk.ports.hash import IHashPort
 
         container = get_app_container()
