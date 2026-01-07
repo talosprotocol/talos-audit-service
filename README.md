@@ -37,10 +37,20 @@ Evaluation: N/A for this repo.
 
 ## Usage
 
-### Quickstart
+### Running the Service
+
+#### Locally
 
 ```bash
-docker compose up
+export PYTHONPATH=.
+python3 src/main.py
+```
+
+#### With Docker
+
+```bash
+docker build -t talos-audit-service .
+docker run -p 8000:8000 talos-audit-service
 ```
 
 ## Operational Interface
