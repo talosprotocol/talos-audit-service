@@ -1,5 +1,7 @@
 # Talos Audit Service
 
+![CI Status](https://github.com/talosprotocol/talos-audit-service/actions/workflows/ci.yml/badge.svg)
+
 **Repo Role**: Immutable logging and compliance verification service for Talos messages.
 
 ## Abstract
@@ -37,16 +39,31 @@ Evaluation: N/A for this repo.
 
 ## Usage
 
-### Running the Service
+### Local Development
 
-#### Locally
+Prerequisites: Python 3.10, 3.11, or 3.12.
 
 ```bash
-export PYTHONPATH=.
-python3 src/main.py
+# Setup virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies (including editable package)
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+pip install -e .
+
+# Run the app
+uvicorn src.main:app --reload --host 127.0.0.1 --port 8000
+
+# Run tests & linting
+pytest
+ruff check .
+ruff format .
 ```
 
-#### With Docker
+### With Docker
 
 ```bash
 docker build -t talos-audit-service .

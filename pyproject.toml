@@ -12,7 +12,19 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "bootstrap"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-cov",
+    "httpx",
+    "uvicorn"
+]
 
 [tool.ruff]
 line-length = 100

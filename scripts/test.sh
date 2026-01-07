@@ -8,12 +8,12 @@ set -euo pipefail
 echo "Testing talos-audit-service..."
 
 echo "Running ruff check..."
-ruff check . --exclude=.venv --exclude=tests 2>/dev/null || true
+ruff check .
 
 echo "Running ruff format check..."
-ruff format --check . --exclude=.venv --exclude=tests 2>/dev/null || true
+ruff format --check .
 
-echo "Running pytest..."
-pytest tests/ --maxfail=1 -q
+echo "Running pytest with coverage..."
+pytest --cov=src --cov-report=term-missing --maxfail=1 -q
 
 echo "talos-audit-service tests passed."
