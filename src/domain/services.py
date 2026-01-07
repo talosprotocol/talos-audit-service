@@ -5,6 +5,7 @@ from src.domain.errors import ValidationError, NotFoundError, ConflictError
 from src.ports.common import IClockPort, IIdPort
 from talos_sdk.ports.audit_store import IAuditStorePort
 
+
 class AuditService:
     """
     Domain Service for Audit operations.
@@ -12,11 +13,7 @@ class AuditService:
     """
 
     def __init__(
-        self,
-        store: IAuditStorePort,
-        merkle_tree: MerkleTree,
-        clock: IClockPort,
-        id_gen: IIdPort
+        self, store: IAuditStorePort, merkle_tree: MerkleTree, clock: IClockPort, id_gen: IIdPort
     ):
         self._store = store
         self._merkle_tree = merkle_tree
@@ -32,10 +29,10 @@ class AuditService:
             # but for now we assume they are compatible or we just need the IDs/data for the tree.
             # To be safe, we Re-wrap them to the Domain Model.
             domain_event = Event(
-                event_id=getattr(event, 'event_id'),
-                timestamp=getattr(event, 'timestamp'),
-                event_type=getattr(event, 'event_type'),
-                details=getattr(event, 'details', {})
+                event_id=getattr(event, "event_id"),
+                timestamp=getattr(event, "timestamp"),
+                event_type=getattr(event, "event_type"),
+                details=getattr(event, "details", {}),
             )
             self._merkle_tree.add_leaf(domain_event)
 
@@ -43,7 +40,7 @@ class AuditService:
         self,
         event_type: str,
         details: Optional[Dict[str, Any]] = None,
-        event_id: Optional[str] = None
+        event_id: Optional[str] = None,
     ) -> Event:
         """
         Ingest a new audit event.
@@ -56,25 +53,25 @@ class AuditService:
             raise ValidationError("event_type is required")
 
         actual_id = event_id or self._id_gen.generate_id()
-        
+
         # Simple idempotency check if tree is rebuilt
         if self._merkle_tree.has_event(actual_id):
-            # For this reference impl, we return existing if ID provided? 
+            # For this reference impl, we return existing if ID provided?
             # Or raise Conflict. Let's raise Conflict if ID was explicit.
             if event_id:
                 raise ConflictError(f"Event with id {event_id} already exists")
             # If generated ID collided (unlikely), regenerate or fail.
-        
+
         event = Event(
             event_id=actual_id,
             timestamp=self._clock.now(),
             event_type=event_type,
-            details=details or {}
+            details=details or {},
         )
 
         # Persistence (Secondary Port)
         self._store.append(event)
-        
+
         # Domain Logic (Merkle)
         self._merkle_tree.add_leaf(event)
 

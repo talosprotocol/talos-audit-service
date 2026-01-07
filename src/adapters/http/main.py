@@ -9,10 +9,12 @@ from src.bootstrap import get_audit_service
 
 from pydantic import BaseModel
 
+
 class EventCreateRequest(BaseModel):
     event_type: str
     details: Optional[Dict[str, Any]] = None
     event_id: Optional[str] = None
+
 
 app = FastAPI(
     title="Talos Audit Service",
@@ -20,20 +22,17 @@ app = FastAPI(
     version="0.3.0",
 )
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "audit-service", "timestamp": time.time()}
 
+
 @app.post("/events", response_model=Event)
-def create_event(
-    request: EventCreateRequest,
-    service: AuditService = Depends(get_audit_service)
-):
+def create_event(request: EventCreateRequest, service: AuditService = Depends(get_audit_service)):
     try:
         event = service.ingest_event(
-            event_type=request.event_type,
-            details=request.details,
-            event_id=request.event_id
+            event_type=request.event_type, details=request.details, event_id=request.event_id
         )
         return event
     except ValidationError as e:
@@ -43,15 +42,14 @@ def create_event(
     except DomainError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/root", response_model=RootView)
 def get_root(service: AuditService = Depends(get_audit_service)):
     return service.get_root()
 
+
 @app.get("/proof/{event_id}", response_model=ProofView)
-def get_proof(
-    event_id: str,
-    service: AuditService = Depends(get_audit_service)
-):
+def get_proof(event_id: str, service: AuditService = Depends(get_audit_service)):
     try:
         return service.get_proof(event_id)
     except NotFoundError as e:

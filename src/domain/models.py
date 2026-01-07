@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict, Any, List
 
+
 class Event(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -13,8 +14,10 @@ class Event(BaseModel):
         # Canonical string representation for hashing
         return f"{self.event_id}:{self.timestamp}:{self.event_type}:{self.details}"
 
+
 class RootView(BaseModel):
     root: str
+
 
 class ProofView(BaseModel):
     event_id: str
