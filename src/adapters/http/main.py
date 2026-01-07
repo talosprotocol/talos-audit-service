@@ -7,6 +7,8 @@ from src.domain.models import Event, RootView, ProofView
 from src.domain.errors import DomainError, ValidationError, NotFoundError, ConflictError
 from src.bootstrap import get_audit_service
 
+from pydantic import BaseModel
+
 class EventCreateRequest(BaseModel):
     event_type: str
     details: Optional[Dict[str, Any]] = None
