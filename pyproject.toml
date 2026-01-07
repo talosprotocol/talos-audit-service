@@ -12,10 +12,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+packages = ["src"]
 
 [project.optional-dependencies]
 dev = [
