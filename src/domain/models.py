@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 
 class Event(BaseModel):
     model_config = ConfigDict(frozen=True)

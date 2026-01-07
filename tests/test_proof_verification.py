@@ -2,7 +2,6 @@ import unittest
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
 from src.ports.common import SystemClockAdapter, UuidIdAdapter
-from talos_sdk.ports.hash import IHashPort
 from talos_sdk.adapters.hash import NativeHashAdapter
 from talos_sdk.adapters.memory_store import InMemoryAuditStore
 

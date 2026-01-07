@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import time
 import uuid
-from typing import Optional
 
 class IClockPort(ABC):
     @abstractmethod

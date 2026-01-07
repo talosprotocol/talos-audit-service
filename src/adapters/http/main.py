@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 import time
 
 from src.domain.services import AuditService
@@ -7,15 +7,9 @@ from src.domain.models import Event, RootView, ProofView
 from src.domain.errors import DomainError, ValidationError, NotFoundError, ConflictError
 
 # Re-using Domain Models as DTOs where applicable or defining lightweight ones here
-from pydantic import BaseModel
-
-class EventCreateRequest(BaseModel):
-    event_type: str
-    details: Optional[Dict[str, Any]] = None
-    event_id: Optional[str] = None
-
-# We will provide dependency via bootstrap
 from src.bootstrap import get_audit_service
+
+from pydantic import BaseModel
 
 app = FastAPI(
     title="Talos Audit Service",

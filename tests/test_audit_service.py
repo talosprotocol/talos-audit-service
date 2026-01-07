@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import MagicMock
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
-from src.domain.models import Event
 from src.domain.errors import ValidationError, NotFoundError, ConflictError
 from src.ports.common import IClockPort, IIdPort
 from talos_sdk.ports.audit_store import IAuditStorePort
