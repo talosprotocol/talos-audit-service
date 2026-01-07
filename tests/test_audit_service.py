@@ -59,11 +59,11 @@ class TestAuditService(unittest.TestCase):
 
     def test_snapshot_consistency(self):
         # Ingest 3 events
-        id1 = self.service.ingest_event(event_type="e1").event_id
+        self.service.ingest_event(event_type="e1")
         id2 = self.service.ingest_event(event_type="e2").event_id
-        id3 = self.service.ingest_event(event_type="e3").event_id
+        self.service.ingest_event(event_type="e3")
         
-        root_snap = self.service.get_root().root
+        self.service.get_root()
         proof2 = self.service.get_proof(id2).proof
         
         # Verify proof locally against root_snap logic

@@ -14,6 +14,7 @@ class TestValidation(unittest.TestCase):
     def test_create_event_wrong_type(self):
         # event_type should be string
         resp = self.client.post("/events", json={"event_type": 123})
+        self.assertEqual(resp.status_code, 422)
         # Pydantic might coerce 123 to "123", let's try something non-coercible if possible 
         # but 422 is standard for Pydantic failures.
 

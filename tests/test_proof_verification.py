@@ -21,7 +21,7 @@ class TestProofVerification(unittest.TestCase):
         """
         Independent implementation of Merkle proof verification.
         """
-        current_hash = self.hash_port.sha256(leaf_data.encode("utf-8"))
+        self.hash_port.sha256(leaf_data.encode("utf-8"))
         
         # We need to know if we are left or right sibling at each step.
         # However, our simple tree duplicates last leaf if odd.

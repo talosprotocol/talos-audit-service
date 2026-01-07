@@ -70,7 +70,7 @@ class TestMerkleTree(unittest.TestCase):
         
         proof = tree.get_proof("id_0").proof
         self.assertEqual(len(proof), 2)
-        h1 = self.mock_hash.sha256(str(event_objs[0]).encode('utf-8'))
+        self.mock_hash.sha256(str(event_objs[0]).encode('utf-8'))
         h2 = self.mock_hash.sha256(str(event_objs[1]).encode('utf-8'))
         h3 = self.mock_hash.sha256(str(event_objs[2]).encode('utf-8'))
         h4 = self.mock_hash.sha256(str(event_objs[3]).encode('utf-8'))
