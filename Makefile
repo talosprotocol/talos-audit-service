@@ -11,27 +11,28 @@ all: install test
 
 install:
 	@echo "Installing dependencies..."
-	pip install -e ".[dev]" -q 2>/dev/null || pip install fastapi uvicorn pydantic -q
+	pip install -e ".[dev]"
 
 build:
 	@echo "Python service - no build step required"
 
 test:
 	@echo "Running tests..."
-	pytest tests/ -q 2>/dev/null || echo "No tests found"
+	pytest --cov=src --cov-report=term-missing
 
 lint:
 	@echo "Running lint..."
-	ruff check . --exclude=.venv --exclude=tests || true
+	ruff check .
+	ruff format --check .
 
 start:
 	@echo "Starting $(SERVICE_NAME)..."
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 		echo "$(SERVICE_NAME) is already running"; \
 	else \
-		uvicorn main:app --port $(PORT) --host 127.0.0.1 > /tmp/$(SERVICE_NAME).log 2>&1 & \
+		uvicorn src.main:app --port 8000 --host 127.0.0.1 > /tmp/$(SERVICE_NAME).log 2>&1 & \
 		echo $$! > $(PID_FILE); \
-		echo "$(SERVICE_NAME) started (PID: $$!, Port: $(PORT))"; \
+		echo "$(SERVICE_NAME) started (PID: $$!, Port: 8000)"; \
 	fi
 
 stop:
