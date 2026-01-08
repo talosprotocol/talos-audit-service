@@ -63,7 +63,9 @@ class AuditService:
             raise ValidationError("event_type is required")
 
         if event_type.upper() not in self.VALID_ENTRY_TYPES:
-            raise ValidationError(f"Invalid event_type: {event_type}. Must be one of {self.VALID_ENTRY_TYPES}")
+            raise ValidationError(
+                f"Invalid event_type: {event_type}. Must be one of {self.VALID_ENTRY_TYPES}"
+            )
 
         actual_id = event_id or self._id_gen.generate_id()
 

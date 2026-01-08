@@ -1,3 +1,21 @@
 #!/usr/bin/env bash
+# Pre-push hook for talos-audit-service
+# Final validation before pushing to remote
 set -euo pipefail
-pytest
+
+echo "🚀 Running pre-push validations..."
+
+# 1. Full lint check (no auto-fix, must be clean)
+echo "🔍 Lint check..."
+ruff check .
+ruff format --check .
+
+# 2. Run full test suite with coverage
+echo "🧪 Running tests with coverage..."
+PYTHONPATH=. pytest --cov=src --cov-report=term-missing
+
+# 3. Docker build validation
+echo "🐳 Validating Docker build..."
+docker build -t talos-audit-service:pre-push-check . --quiet
+
+echo "✅ All pre-push checks passed! Ready to push."

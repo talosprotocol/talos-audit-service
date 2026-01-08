@@ -55,33 +55,25 @@ class MerkleTree:
         """Generate Merkle Proof for an event matching Wiki spec."""
         if event_id not in self._event_id_to_index:
             # This should ideally be handled by service
-            return ProofView(
-                event_id=event_id, 
-                entry_hash="", 
-                root="", 
-                height=0, 
-                path=[], 
-                index=-1
-            )
+            return ProofView(event_id=event_id, entry_hash="", root="", height=0, path=[], index=-1)
 
         index = self._event_id_to_index[event_id]
         entry_hash = self._leaves[index].hex()
         path = []
-        
+
         current_index = index
         for level_index in range(len(self._tree) - 1):
             level = self._tree[level_index]
             is_right = current_index % 2 == 1
             sibling_index = current_index - 1 if is_right else current_index + 1
-            
+
             # handle odd node at end
             if sibling_index >= len(level):
                 sibling_index = current_index
-            
-            path.append(ProofStep(
-                position="left" if is_right else "right",
-                hash=level[sibling_index].hex()
-            ))
+
+            path.append(
+                ProofStep(position="left" if is_right else "right", hash=level[sibling_index].hex())
+            )
             current_index //= 2
 
         return ProofView(
@@ -90,7 +82,7 @@ class MerkleTree:
             root=self.get_root().root,
             height=len(self._tree),
             path=path,
-            index=index
+            index=index,
         )
 
     def has_event(self, event_id: str) -> bool:

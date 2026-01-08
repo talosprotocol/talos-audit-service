@@ -14,6 +14,7 @@ class Event(BaseModel):
         # Canonical string representation for hashing
         # In production, use JSON with sorted keys or Protobuf
         import json
+
         details_json = json.dumps(self.details, sort_keys=True)
         return f"{self.event_id}:{self.timestamp}:{self.event_type}:{details_json}"
 
@@ -23,8 +24,9 @@ class RootView(BaseModel):
 
 
 class ProofStep(BaseModel):
-    position: str # "left" or "right"
+    position: str  # "left" or "right"
     hash: str
+
 
 class ProofView(BaseModel):
     event_id: str

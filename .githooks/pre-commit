@@ -1,9 +1,32 @@
 #!/usr/bin/env bash
+# Pre-commit hook for talos-audit-service
+# Validates: version sync, lint, format, tests, and Docker build
 set -euo pipefail
 
+echo "🔄 Running pre-commit validations..."
+
+# 1. Version sync
+echo "📦 Syncing version..."
 python scripts/version_sync.py
 git add pyproject.toml
 
+# 2. Lint check (with auto-fix)
+echo "🔍 Running linter (ruff check)..."
 ruff check --fix .
+
+# 3. Format check (with auto-fix)
+echo "✨ Running formatter (ruff format)..."
 ruff format .
-pytest
+
+# 4. Re-add any auto-fixed files
+git add -u
+
+# 5. Run tests
+echo "🧪 Running tests..."
+PYTHONPATH=. pytest -q --tb=short
+
+# 6. Docker build validation
+echo "🐳 Validating Docker build..."
+docker build -t talos-audit-service:pre-commit-check . --quiet
+
+echo "✅ All pre-commit checks passed!"

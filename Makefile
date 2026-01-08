@@ -1,7 +1,7 @@
 # talos-audit-service Makefile
 # Audit Log Aggregator Service
 
-.PHONY: install build test lint clean start stop status
+.PHONY: install build test lint clean start stop status docker-build
 
 SERVICE_NAME := talos-audit-service
 PID_FILE := /tmp/$(SERVICE_NAME).pid
@@ -15,6 +15,10 @@ install:
 
 build:
 	@echo "Python service - no build step required"
+
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t $(SERVICE_NAME):latest .
 
 test:
 	@echo "Running tests..."
