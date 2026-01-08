@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict
 from talos_sdk.ports.hash import IHashPort
 from src.domain.models import Event, RootView, ProofView, ProofStep
 
