@@ -12,6 +12,16 @@ class AuditService:
     Orchestrates Ports and Domain Entities/Logic.
     """
 
+    VALID_ENTRY_TYPES = {
+        "MESSAGE",
+        "SESSION",
+        "CAP_GRANT",
+        "CAP_REVOKE",
+        "KEY_ROTATE",
+        "IDENTITY",
+        "TEST",  # Case insensitive match will now work
+    }
+
     def __init__(
         self, store: IAuditStorePort, merkle_tree: MerkleTree, clock: IClockPort, id_gen: IIdPort
     ):
@@ -51,6 +61,9 @@ class AuditService:
         """
         if not event_type:
             raise ValidationError("event_type is required")
+
+        if event_type.upper() not in self.VALID_ENTRY_TYPES:
+            raise ValidationError(f"Invalid event_type: {event_type}. Must be one of {self.VALID_ENTRY_TYPES}")
 
         actual_id = event_id or self._id_gen.generate_id()
 

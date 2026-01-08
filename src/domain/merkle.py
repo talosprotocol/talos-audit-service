@@ -1,17 +1,18 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from talos_sdk.ports.hash import IHashPort
-from src.domain.models import Event, RootView, ProofView
+from src.domain.models import Event, RootView, ProofView, ProofStep
 
 
 class MerkleTree:
     """
     A pure domain implementation of a Merkle Tree.
-    Does not depend on any external I/O or frameworks.
+    Stores levels for fast proof generation.
     """
 
     def __init__(self, hash_port: IHashPort):
         self._hash_port = hash_port
         self._leaves: List[bytes] = []
+        self._tree: List[List[bytes]] = []
         self._event_id_to_index: Dict[str, int] = {}
 
     def add_leaf(self, event: Event) -> int:
@@ -22,57 +23,75 @@ class MerkleTree:
         index = len(self._leaves)
         self._leaves.append(leaf_hash)
         self._event_id_to_index[event.event_id] = index
+        self._rebuild()
         return index
 
-    def get_root(self) -> RootView:
-        """Calculate and return the Merkle Root."""
+    def _rebuild(self):
+        """Build the full tree levels from leaves."""
         if not self._leaves:
-            return RootView(root="")
+            self._tree = []
+            return
 
-        root_bytes = self._compute_root(self._leaves)
-        return RootView(root=root_bytes.hex())
-
-    def _compute_root(self, nodes: List[bytes]) -> bytes:
-        if len(nodes) == 1:
-            return nodes[0]
-
-        new_level = []
-        for i in range(0, len(nodes), 2):
-            left = nodes[i]
-            right = nodes[i + 1] if i + 1 < len(nodes) else left
-            combined = left + right
-            new_level.append(self._hash_port.sha256(combined))
-
-        return self._compute_root(new_level)
-
-    def get_proof(self, event_id: str) -> ProofView:
-        """Generate Merkle Proof for an event."""
-        if event_id not in self._event_id_to_index:
-            return ProofView(event_id=event_id, proof=[])
-
-        index = self._event_id_to_index[event_id]
-        proof_hashes = []
-        current_level = list(self._leaves)
+        current_level = self._leaves
+        self._tree = [current_level]
 
         while len(current_level) > 1:
-            if len(current_level) % 2 == 1:
-                current_level.append(current_level[-1])
-
-            is_right_node = index % 2 == 1
-            sibling_index = index - 1 if is_right_node else index + 1
-
-            proof_hashes.append(current_level[sibling_index].hex())
-
-            new_level = []
+            next_level = []
             for i in range(0, len(current_level), 2):
                 left = current_level[i]
-                right = current_level[i + 1]
-                new_level.append(self._hash_port.sha256(left + right))
+                right = current_level[i + 1] if i + 1 < len(current_level) else left
+                combined = left + right
+                next_level.append(self._hash_port.sha256(combined))
+            current_level = next_level
+            self._tree.append(current_level)
 
-            current_level = new_level
-            index //= 2
+    def get_root(self) -> RootView:
+        """Return the Merkle Root."""
+        if not self._tree:
+            return RootView(root="")
+        return RootView(root=self._tree[-1][0].hex())
 
-        return ProofView(event_id=event_id, proof=proof_hashes)
+    def get_proof(self, event_id: str) -> ProofView:
+        """Generate Merkle Proof for an event matching Wiki spec."""
+        if event_id not in self._event_id_to_index:
+            # This should ideally be handled by service
+            return ProofView(
+                event_id=event_id, 
+                entry_hash="", 
+                root="", 
+                height=0, 
+                path=[], 
+                index=-1
+            )
+
+        index = self._event_id_to_index[event_id]
+        entry_hash = self._leaves[index].hex()
+        path = []
+        
+        current_index = index
+        for level_index in range(len(self._tree) - 1):
+            level = self._tree[level_index]
+            is_right = current_index % 2 == 1
+            sibling_index = current_index - 1 if is_right else current_index + 1
+            
+            # handle odd node at end
+            if sibling_index >= len(level):
+                sibling_index = current_index
+            
+            path.append(ProofStep(
+                position="left" if is_right else "right",
+                hash=level[sibling_index].hex()
+            ))
+            current_index //= 2
+
+        return ProofView(
+            event_id=event_id,
+            entry_hash=entry_hash,
+            root=self.get_root().root,
+            height=len(self._tree),
+            path=path,
+            index=index
+        )
 
     def has_event(self, event_id: str) -> bool:
         return event_id in self._event_id_to_index

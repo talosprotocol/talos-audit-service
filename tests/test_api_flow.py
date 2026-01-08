@@ -21,14 +21,14 @@ class TestApiFlow(unittest.TestCase):
         # initial_root = resp.json()["root"]
 
         # 2. Add event 1
-        payload = {"event_type": "user_login", "details": {"user": "alice"}}
+        payload = {"event_type": "SESSION", "details": {"user": "alice"}}
         resp = self.client.post("/events", json=payload)
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         event_id_1 = data["event_id"]
 
         # 3. Add event 2
-        resp = self.client.post("/events", json={"event_type": "user_logout"})
+        resp = self.client.post("/events", json={"event_type": "SESSION"})
         self.assertEqual(resp.status_code, 200)
         event_id_2 = resp.json()["event_id"]
 
@@ -41,15 +41,15 @@ class TestApiFlow(unittest.TestCase):
         # 5. Get Proof for Event 1
         resp = self.client.get(f"/proof/{event_id_1}")
         self.assertEqual(resp.status_code, 200)
-        proof = resp.json()["proof"]
-        # With 2 leaves at least, proof should not be empty
-        self.assertTrue(len(proof) > 0)
+        path = resp.json()["path"]
+        # With 2 leaves at least, path should not be empty
+        self.assertTrue(len(path) > 0)
 
         # 6. Get Proof for Event 2
         resp = self.client.get(f"/proof/{event_id_2}")
         self.assertEqual(resp.status_code, 200)
-        proof = resp.json()["proof"]
-        self.assertTrue(len(proof) > 0)
+        path = resp.json()["path"]
+        self.assertTrue(len(path) > 0)
 
 
 if __name__ == "__main__":

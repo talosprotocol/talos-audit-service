@@ -34,8 +34,8 @@ class TestMerkleTree(unittest.TestCase):
     def test_simple_string_events(self):
         tree = MerkleTree(self.mock_hash)
 
-        e1 = Event(event_id="1", timestamp=0.0, event_type="t", details={})
-        e2 = Event(event_id="2", timestamp=0.0, event_type="t", details={})
+        e1 = Event(event_id="1", timestamp=0.0, event_type="TEST", details={})
+        e2 = Event(event_id="2", timestamp=0.0, event_type="TEST", details={})
 
         # Leaf 1
         tree.add_leaf(e1)
@@ -54,7 +54,7 @@ class TestMerkleTree(unittest.TestCase):
         events = ["e1", "e2", "e3", "e4"]
         event_objs = []
         for i, e in enumerate(events):
-            obj = Event(event_id=f"id_{i}", timestamp=0.0, event_type="t", details={"d": e})
+            obj = Event(event_id=f"id_{i}", timestamp=0.0, event_type="TEST", details={"d": e})
             event_objs.append(obj)
             tree.add_leaf(obj)
 
@@ -70,15 +70,17 @@ class TestMerkleTree(unittest.TestCase):
         # Proof for e1 (index 0): [H2, H34]
         # Verify proof locally in test
 
-        proof = tree.get_proof("id_0").proof
+        proof = tree.get_proof("id_0").path
         self.assertEqual(len(proof), 2)
         self.mock_hash.sha256(str(event_objs[0]).encode("utf-8"))
         h2 = self.mock_hash.sha256(str(event_objs[1]).encode("utf-8"))
         h3 = self.mock_hash.sha256(str(event_objs[2]).encode("utf-8"))
         h4 = self.mock_hash.sha256(str(event_objs[3]).encode("utf-8"))
 
-        self.assertEqual(proof[0], h2.hex())
-        self.assertEqual(proof[1], self.mock_hash.sha256(h3 + h4).hex())
+        self.assertEqual(proof[0].hash, h2.hex())
+        self.assertEqual(proof[0].position, "right")
+        self.assertEqual(proof[1].hash, self.mock_hash.sha256(h3 + h4).hex())
+        self.assertEqual(proof[1].position, "right")
 
 
 if __name__ == "__main__":

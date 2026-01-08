@@ -32,11 +32,11 @@ class TestAuditService(unittest.TestCase):
         )
 
     def test_ingest_event_success(self):
-        event = self.service.ingest_event(event_type="login", details={"user": "alice"})
+        event = self.service.ingest_event(event_type="MESSAGE", details={"user": "alice"})
 
         self.assertEqual(event.event_id, "fixed-id")
         self.assertEqual(event.timestamp, 1000.0)
-        self.assertEqual(event.event_type, "login")
+        self.assertEqual(event.event_type, "MESSAGE")
         self.mock_store.append.assert_called_once()
 
         root = self.service.get_root()
@@ -60,12 +60,12 @@ class TestAuditService(unittest.TestCase):
 
     def test_snapshot_consistency(self):
         # Ingest 3 events
-        self.service.ingest_event(event_type="e1")
-        id2 = self.service.ingest_event(event_type="e2").event_id
-        self.service.ingest_event(event_type="e3")
+        self.service.ingest_event(event_type="MESSAGE")
+        id2 = self.service.ingest_event(event_type="MESSAGE").event_id
+        self.service.ingest_event(event_type="MESSAGE")
 
         self.service.get_root()
-        proof2 = self.service.get_proof(id2).proof
+        path2 = self.service.get_proof(id2).path
 
         # Verify proof locally against root_snap logic
         # Proof for e2 (index 1) in [e1, e2, e3]
@@ -74,10 +74,10 @@ class TestAuditService(unittest.TestCase):
         # Root: H(H12+H33)
         # Proof for H2: [H1, H33]
 
-        self.assertEqual(len(proof2), 2)
+        self.assertEqual(len(path2), 2)
         # We don't need to rebuild the whole verification logic here,
         # but asserting that the proof is returned and root exists.
-        self.assertTrue(all(isinstance(p, str) for p in proof2))
+        self.assertTrue(all(p.hash for p in path2))
 
 
 if __name__ == "__main__":
