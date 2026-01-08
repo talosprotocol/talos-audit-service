@@ -42,24 +42,20 @@ class TestProofVerification(unittest.TestCase):
         # Ingest events and verify proofs for each
         ids = []
         for i in range(5):
-            event = self.service.ingest_event(f"type_{i}")
+            event = self.service.ingest_event("TEST")
             ids.append((event.event_id, str(event)))
 
         root = self.service.get_root().root
 
         for event_id, event_str in ids:
             proof_view = self.service.get_proof(event_id)
-            proof = proof_view.proof
-
-            # Algorithmic verification:
-            # Since we didn't store index in ProofView, let's use the internal index for verification test
-            index = self.merkle_tree._event_id_to_index[event_id]
+            path = proof_view.path
 
             calculated_hash = self.hash_port.sha256(event_str.encode("utf-8"))
 
-            for sibling_hex in proof:
-                sibling = bytes.fromhex(sibling_hex)
-                if index % 2 == 0:
+            for step in path:
+                sibling = bytes.fromhex(step.hash)
+                if step.position == "right":
                     # We are left
                     combined = calculated_hash + sibling
                 else:
@@ -67,7 +63,6 @@ class TestProofVerification(unittest.TestCase):
                     combined = sibling + calculated_hash
 
                 calculated_hash = self.hash_port.sha256(combined)
-                index //= 2
 
             self.assertEqual(calculated_hash.hex(), root, f"Proof failed for {event_id}")
 

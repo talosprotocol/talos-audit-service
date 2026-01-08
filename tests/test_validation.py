@@ -26,9 +26,9 @@ class TestValidation(unittest.TestCase):
 
     def test_conflict_error_mapping(self):
         # First one
-        self.client.post("/events", json={"event_type": "test", "event_id": "dup-1"})
+        self.client.post("/events", json={"event_type": "TEST", "event_id": "dup-1"})
         # Second one with same ID
-        resp = self.client.post("/events", json={"event_type": "test", "event_id": "dup-1"})
+        resp = self.client.post("/events", json={"event_type": "TEST", "event_id": "dup-1"})
         self.assertEqual(resp.status_code, 409)
         self.assertIn("already exists", resp.json()["detail"].lower())
 

@@ -41,7 +41,7 @@ Evaluation: N/A for this repo.
 
 ### Local Development
 
-Prerequisites: Python 3.10, 3.11, or 3.12.
+Prerequisites: Python 3.10, 3.11, or 3.12. (Note: `talos-sdk-py` is required and installed via `requirements.txt`).
 
 ```bash
 # Setup virtual environment
