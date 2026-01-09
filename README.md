@@ -85,3 +85,9 @@ docker run -p 8000:8000 talos-audit-service
 
 1.  [Talos Wiki](https://github.com/talosprotocol/talos/wiki)
 2.  [Audit Explorer](https://github.com/talosprotocol/talos/wiki/Audit-Explorer)
+
+## License
+
+Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+
+Licensed under the Apache License 2.0. See [LICENSE](LICENSE).

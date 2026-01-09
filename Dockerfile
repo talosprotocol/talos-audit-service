@@ -1,6 +1,8 @@
 # Talos Audit Service - Dockerfile
 FROM python:3.11-slim
 
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
 WORKDIR /app
 
 # Install curl for healthcheck and git for private repos
