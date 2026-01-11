@@ -8,15 +8,23 @@ class Event(BaseModel):
     event_id: str
     timestamp: float
     event_type: str
+    schema_id: str = "talos.audit.v1"
+    schema_version: int = 1
     details: Dict[str, Any] = Field(default_factory=dict)
 
     def __str__(self):
         # Canonical string representation for hashing
-        # In production, use JSON with sorted keys or Protobuf
-        import json
+        from talos_sdk.canonical import canonical_json
 
-        details_json = json.dumps(self.details, sort_keys=True)
-        return f"{self.event_id}:{self.timestamp}:{self.event_type}:{details_json}"
+        core = {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp,
+            "event_type": self.event_type,
+            "schema_id": self.schema_id,
+            "schema_version": self.schema_version,
+            "details": self.details,
+        }
+        return canonical_json(core)
 
 
 class RootView(BaseModel):
