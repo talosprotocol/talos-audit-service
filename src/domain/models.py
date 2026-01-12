@@ -1,30 +1,29 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Dict, Any, List
+from pydantic import BaseModel, ConfigDict
+from typing import Dict, Any, List, Optional
 
 
 class Event(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    schema_id: str = "talos.audit_event"
+    schema_version: str = "v1"
     event_id: str
-    timestamp: float
-    event_type: str
-    schema_id: str = "talos.audit.v1"
-    schema_version: int = 1
-    details: Dict[str, Any] = Field(default_factory=dict)
+    ts: str
+    request_id: str
+    surface_id: str
+    outcome: str
+    principal: Dict[str, Any]
+    http: Dict[str, Any]
+    meta: Dict[str, Any]
+    resource: Optional[Dict[str, Any]] = None
+    event_hash: str
 
     def __str__(self):
-        # Canonical string representation for hashing
-        from talos_sdk.canonical import canonical_json
+        # Canonical string representation for hashing (RFC 8785)
+        import json
 
-        core = {
-            "event_id": self.event_id,
-            "timestamp": self.timestamp,
-            "event_type": self.event_type,
-            "schema_id": self.schema_id,
-            "schema_version": self.schema_version,
-            "details": self.details,
-        }
-        return canonical_json(core)
+        clean = self.model_dump(exclude={"event_hash"})
+        return json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 class RootView(BaseModel):

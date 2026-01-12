@@ -1,19 +1,10 @@
 from fastapi import FastAPI, HTTPException, Depends
-from typing import Optional, Dict, Any
 import time
 
 from src.domain.services import AuditService
 from src.domain.models import Event, RootView, ProofView
 from src.domain.errors import DomainError, ValidationError, NotFoundError, ConflictError
 from src.bootstrap import get_audit_service
-
-from pydantic import BaseModel
-
-
-class EventCreateRequest(BaseModel):
-    event_type: str
-    details: Optional[Dict[str, Any]] = None
-    event_id: Optional[str] = None
 
 
 app = FastAPI(
@@ -28,13 +19,10 @@ def health_check():
     return {"status": "ok", "service": "audit-service", "timestamp": time.time()}
 
 
-@app.post("/events", response_model=Event)
-def create_event(request: EventCreateRequest, service: AuditService = Depends(get_audit_service)):
+@app.post("/events")
+def create_event(event: Event, service: AuditService = Depends(get_audit_service)):
     try:
-        event = service.ingest_event(
-            event_type=request.event_type, details=request.details, event_id=request.event_id
-        )
-        return event
+        return service.ingest_event(event)
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ConflictError as e:

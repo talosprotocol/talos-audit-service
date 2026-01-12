@@ -1,9 +1,11 @@
 import unittest
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
+from src.domain.models import Event
 from src.ports.common import SystemClockAdapter, UuidIdAdapter
 from talos_sdk.adapters.hash import NativeHashAdapter
 from talos_sdk.adapters.memory_store import InMemoryAuditStore
+import hashlib
 
 
 class TestProofVerification(unittest.TestCase):
@@ -42,7 +44,22 @@ class TestProofVerification(unittest.TestCase):
         # Ingest events and verify proofs for each
         ids = []
         for i in range(5):
-            event = self.service.ingest_event("TEST")
+            e = Event(
+                event_id=f"e-{i}",
+                ts="2026-01-11T18:23:45.123Z",
+                request_id=f"req-{i}",
+                surface_id="test.op",
+                outcome="success",
+                principal={"auth_mode": "bearer", "principal_id": f"p-{i}", "team_id": "t-1"},
+                http={"method": "GET", "path": "/v1/test", "status_code": 200},
+                meta={},
+                event_hash="",
+            )
+            canonical = str(e)
+            e = e.model_copy(
+                update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
+            )
+            event = self.service.ingest_event(e)
             ids.append((event.event_id, str(event)))
 
         root = self.service.get_root().root

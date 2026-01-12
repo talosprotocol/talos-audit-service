@@ -1,4 +1,3 @@
-from typing import Optional, Dict, Any
 from src.domain.models import Event, RootView, ProofView
 from src.domain.merkle import MerkleTree
 from src.domain.errors import ValidationError, NotFoundError, ConflictError
@@ -35,59 +34,50 @@ class AuditService:
         """Rebuild tree from store on startup."""
         page = self._store.list(limit=10000)
         for event in page.events:
-            # We need to wrap store events into domain events if they differ,
-            # but for now we assume they are compatible or we just need the IDs/data for the tree.
-            # To be safe, we Re-wrap them to the Domain Model.
+            # Re-wrap store records to the hardened Domain Model.
+            # We assume store attributes match the model fields or are accessible.
             domain_event = Event(
+                schema_id=getattr(event, "schema_id", "talos.audit_event"),
+                schema_version=getattr(event, "schema_version", "v1"),
                 event_id=getattr(event, "event_id"),
-                timestamp=getattr(event, "timestamp"),
-                event_type=getattr(event, "event_type"),
-                details=getattr(event, "details", {}),
+                ts=getattr(event, "ts"),
+                request_id=getattr(event, "request_id"),
+                surface_id=getattr(event, "surface_id"),
+                outcome=getattr(event, "outcome"),
+                principal=getattr(event, "principal"),
+                http=getattr(event, "http"),
+                meta=getattr(event, "meta"),
+                resource=getattr(event, "resource", None),
+                event_hash=getattr(event, "event_hash"),
             )
             self._merkle_tree.add_leaf(domain_event)
 
-    def ingest_event(
-        self,
-        event_type: str,
-        details: Optional[Dict[str, Any]] = None,
-        event_id: Optional[str] = None,
-    ) -> Event:
+    def ingest_event(self, event: Event) -> Event:
         """
         Ingest a new audit event.
-        - Generates ID and Timestamp if not provided.
-        - Enforces idempotency (optional, for now simple append).
+        - Verifies event_hash integrity (RFC 8785).
         - Persists to Store.
         - Anchors to Merkle Tree.
         """
-        if not event_type:
-            raise ValidationError("event_type is required")
+        # 1. Integrity Verification
+        import hashlib
 
-        if event_type.upper() not in self.VALID_ENTRY_TYPES:
+        canonical_str = str(event)
+        calculated_hash = hashlib.sha256(canonical_str.encode("utf-8")).hexdigest()
+
+        if calculated_hash != event.event_hash:
             raise ValidationError(
-                f"Invalid event_type: {event_type}. Must be one of {self.VALID_ENTRY_TYPES}"
+                f"Audit Integrity Failure: event_hash mismatch for event {event.event_id}"
             )
 
-        actual_id = event_id or self._id_gen.generate_id()
+        # 2. Idempotency check
+        if self._merkle_tree.has_event(event.event_id):
+            raise ConflictError(f"Event with id {event.event_id} already exists")
 
-        # Simple idempotency check if tree is rebuilt
-        if self._merkle_tree.has_event(actual_id):
-            # For this reference impl, we return existing if ID provided?
-            # Or raise Conflict. Let's raise Conflict if ID was explicit.
-            if event_id:
-                raise ConflictError(f"Event with id {event_id} already exists")
-            # If generated ID collided (unlikely), regenerate or fail.
-
-        event = Event(
-            event_id=actual_id,
-            timestamp=self._clock.now(),
-            event_type=event_type,
-            details=details or {},
-        )
-
-        # Persistence (Secondary Port)
+        # 3. Persistence (Secondary Port)
         self._store.append(event)
 
-        # Domain Logic (Merkle)
+        # 4. Domain Logic (Merkle)
         self._merkle_tree.add_leaf(event)
 
         return event

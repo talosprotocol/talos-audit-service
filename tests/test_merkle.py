@@ -22,10 +22,20 @@ class TestMerkleTree(unittest.TestCase):
 
     def test_single_leaf(self):
         tree = MerkleTree(self.mock_hash)
-        event = Event(event_id="evt1", timestamp=0.0, event_type="test", details={"data": "data1"})
-        # Note: Event __str__ uses event_id, timestamp, type, details.
-        # So we need to match our mock expectations or just accept what it produces.
-
+        event = Event(
+            schema_id="talos.audit_event",
+            schema_version="v1",
+            event_id="evt1",
+            ts="2026-01-11T18:23:45.123Z",
+            request_id="req-1",
+            surface_id="test.op",
+            outcome="success",
+            principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+            http={"method": "GET", "path": "/v1/test", "status_code": 200},
+            meta={},
+            resource=None,
+            event_hash="some-hash",
+        )
         tree.add_leaf(event)
         self.assertEqual(
             tree.get_root().root, self.mock_hash.sha256(str(event).encode("utf-8")).hex()
@@ -34,8 +44,24 @@ class TestMerkleTree(unittest.TestCase):
     def test_simple_string_events(self):
         tree = MerkleTree(self.mock_hash)
 
-        e1 = Event(event_id="1", timestamp=0.0, event_type="TEST", details={})
-        e2 = Event(event_id="2", timestamp=0.0, event_type="TEST", details={})
+        def build_event(eid):
+            return Event(
+                schema_id="talos.audit_event",
+                schema_version="v1",
+                event_id=eid,
+                ts="2026-01-11T18:23:45.123Z",
+                request_id="req-1",
+                surface_id="test.op",
+                outcome="success",
+                principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+                http={"method": "GET", "path": "/v1/test", "status_code": 200},
+                meta={},
+                resource=None,
+                event_hash="some-hash",
+            )
+
+        e1 = build_event("1")
+        e2 = build_event("2")
 
         # Leaf 1
         tree.add_leaf(e1)
@@ -51,28 +77,32 @@ class TestMerkleTree(unittest.TestCase):
     def test_proof_verification(self):
         tree = MerkleTree(self.mock_hash)
 
-        events = ["e1", "e2", "e3", "e4"]
+        def build_event(eid):
+            return Event(
+                schema_id="talos.audit_event",
+                schema_version="v1",
+                event_id=eid,
+                ts="2026-01-11T18:23:45.123Z",
+                request_id="req-1",
+                surface_id="test.op",
+                outcome="success",
+                principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+                http={"method": "GET", "path": "/v1/test", "status_code": 200},
+                meta={},
+                resource=None,
+                event_hash="some-hash",
+            )
+
+        events = ["id_0", "id_1", "id_2", "id_3"]
         event_objs = []
-        for i, e in enumerate(events):
-            obj = Event(event_id=f"id_{i}", timestamp=0.0, event_type="TEST", details={"d": e})
+        for eid in events:
+            obj = build_event(eid)
             event_objs.append(obj)
             tree.add_leaf(obj)
 
-        # Tree:
-        #       Root
-        #    H12    H34
-        #  H1  H2  H3  H4
-
-        # H1 = hash(e1)
-        # H2 = hash(e2)
-        # H12 = hash(H1+H2)
-
-        # Proof for e1 (index 0): [H2, H34]
-        # Verify proof locally in test
-
         proof = tree.get_proof("id_0").path
         self.assertEqual(len(proof), 2)
-        self.mock_hash.sha256(str(event_objs[0]).encode("utf-8"))
+
         h2 = self.mock_hash.sha256(str(event_objs[1]).encode("utf-8"))
         h3 = self.mock_hash.sha256(str(event_objs[2]).encode("utf-8"))
         h4 = self.mock_hash.sha256(str(event_objs[3]).encode("utf-8"))

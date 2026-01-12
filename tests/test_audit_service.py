@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import MagicMock
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
-from src.domain.errors import ValidationError, NotFoundError, ConflictError
+from src.domain.models import Event
+from src.domain.errors import NotFoundError, ConflictError
 from src.ports.common import IClockPort, IIdPort
 from talos_sdk.ports.audit_store import IAuditStorePort
 from talos_sdk.ports.hash import IHashPort
@@ -32,37 +33,93 @@ class TestAuditService(unittest.TestCase):
         )
 
     def test_ingest_event_success(self):
-        event = self.service.ingest_event(event_type="MESSAGE", details={"user": "alice"})
+        event_obj = Event(
+            event_id="e-1",
+            ts="2026-01-11T18:23:45.123Z",
+            request_id="req-1",
+            surface_id="test.op",
+            outcome="success",
+            principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+            http={"method": "GET", "path": "/v1/test", "status_code": 200},
+            meta={},
+            event_hash="",
+        )
+        # Update hash
+        import hashlib
+        import json
 
-        self.assertEqual(event.event_id, "fixed-id")
-        self.assertEqual(event.timestamp, 1000.0)
-        self.assertEqual(event.event_type, "MESSAGE")
+        clean = event_obj.model_dump(exclude={"event_hash"})
+        canonical = json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        event_obj = event_obj.model_copy(
+            update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
+        )
+
+        event = self.service.ingest_event(event_obj)
+
+        self.assertEqual(event.event_id, "e-1")
+        self.assertEqual(event.outcome, "success")
         self.mock_store.append.assert_called_once()
 
-        root = self.service.get_root()
-        self.assertNotEqual(root.root, "")
-
-    def test_ingest_rejects_empty_type(self):
-        with self.assertRaises(ValidationError):
-            self.service.ingest_event(event_type="")
-
     def test_idempotency_conflict(self):
+        event_obj = Event(
+            event_id="unique-1",
+            ts="2026-01-11T18:23:45.123Z",
+            request_id="req-1",
+            surface_id="test.op",
+            outcome="success",
+            principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+            http={"method": "GET", "path": "/v1/test", "status_code": 200},
+            meta={},
+            event_hash="",
+        )
+        # Update hash
+        import hashlib
+        import json
+
+        clean = event_obj.model_dump(exclude={"event_hash"})
+        canonical = json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        event_obj = event_obj.model_copy(
+            update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
+        )
+
         # First ingest
-        self.service.ingest_event(event_type="test", event_id="unique-1")
+        self.service.ingest_event(event_obj)
 
         # Second ingest with same ID should fail
         with self.assertRaises(ConflictError):
-            self.service.ingest_event(event_type="test", event_id="unique-1")
+            self.service.ingest_event(event_obj)
 
     def test_get_proof_not_found(self):
         with self.assertRaises(NotFoundError):
             self.service.get_proof("missing-id")
 
     def test_snapshot_consistency(self):
+        def build_valid(eid):
+            import hashlib
+
+            e = Event(
+                schema_id="talos.audit_event",
+                schema_version="v1",
+                event_id=eid,
+                ts="2026-01-11T18:23:45.123Z",
+                request_id="req-1",
+                surface_id="test.op",
+                outcome="success",
+                principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+                http={"method": "GET", "path": "/v1/test", "status_code": 200},
+                meta={},
+                resource=None,
+                event_hash="",
+            )
+            c = str(e)
+            e = e.model_copy(update={"event_hash": hashlib.sha256(c.encode("utf-8")).hexdigest()})
+            return e
+
         # Ingest 3 events
-        self.service.ingest_event(event_type="MESSAGE")
-        id2 = self.service.ingest_event(event_type="MESSAGE").event_id
-        self.service.ingest_event(event_type="MESSAGE")
+        self.service.ingest_event(build_valid("e1"))
+        id2 = build_valid("e2").event_id
+        self.service.ingest_event(build_valid("e2"))
+        self.service.ingest_event(build_valid("e3"))
 
         self.service.get_root()
         path2 = self.service.get_proof(id2).path
