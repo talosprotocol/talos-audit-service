@@ -1,62 +1,63 @@
-# Talos Audit Service - Production Dockerfile
-# Syntax: docker/dockerfile:1.4
+# ========================================
+# Builder Stage  
+# ========================================
 FROM python:3.11-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY sdks/python /build/sdks/python
+COPY contracts/python /build/contracts/python
+COPY services/audit/requirements.txt .
 
-# ==========================================
-# Production Stage
-# ==========================================
-FROM python:3.11-slim AS production
+RUN pip wheel --no-cache-dir --wheel-dir /wheels \
+    -r requirements.txt \
+    /build/sdks/python \
+    /build/contracts/python
 
-LABEL org.opencontainers.image.source="https://github.com/talosprotocol/talos"
-LABEL org.opencontainers.image.licenses="Apache-2.0"
+# ========================================
+# Runtime Stage
+# ========================================
+FROM python:3.11-slim
 
-WORKDIR /app
+ARG GIT_SHA=unknown
+ARG VERSION=unknown
+ARG BUILD_TIME=unknown
 
-# Environment configuration
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    GIT_SHA=${GIT_SHA} \
+    VERSION=${VERSION} \
+    BUILD_TIME=${BUILD_TIME}
 
-# Security: Create non-root user
-RUN groupadd -r talos && useradd -r -g talos talos
+RUN groupadd --system --gid 1001 talos && \
+    useradd --system --uid 1001 --gid talos --create-home talos
 
-# Install runtime dependencies (curl for healthcheck)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 
-# Copy application code
-COPY src/ src/
-COPY scripts/ scripts/
+COPY --chown=1001:1001 services/audit/src/ src/
+COPY --chown=1001:1001 services/audit/scripts/ scripts/
 
-# Set permissions
-RUN chown -R talos:talos /app
+# Written mounts for read-only root filesystem
+RUN mkdir -p /tmp /var/run && chown -R 1001:1001 /tmp /var/run
 
-# Switch to non-root user
-USER talos
+USER 1001:1001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose port
 EXPOSE 8000
 
-# Start command
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+LABEL org.opencontainers.image.source="https://github.com/talosprotocol/talos" \
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.created="${BUILD_TIME}" \
+      org.opencontainers.image.licenses="Apache-2.0"
