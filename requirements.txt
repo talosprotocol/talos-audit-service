@@ -5,3 +5,4 @@ sqlalchemy
 alembic
 httpx
 pytest
+sse-starlette

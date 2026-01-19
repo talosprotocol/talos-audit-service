@@ -1,3 +1,4 @@
+from typing import Any
 from src.domain.models import Event, RootView, ProofView
 from src.domain.merkle import MerkleTree
 from src.domain.errors import ValidationError, NotFoundError, ConflictError
@@ -22,12 +23,18 @@ class AuditService:
     }
 
     def __init__(
-        self, store: IAuditStorePort, merkle_tree: MerkleTree, clock: IClockPort, id_gen: IIdPort
+        self,
+        store: IAuditStorePort,
+        merkle_tree: MerkleTree,
+        clock: IClockPort,
+        id_gen: IIdPort,
+        broadcaster: Any = None,  # Inject broadcaster
     ):
         self._store = store
         self._merkle_tree = merkle_tree
         self._clock = clock
         self._id_gen = id_gen
+        self._broadcaster = broadcaster
         self._initialize_tree()
 
     def _initialize_tree(self):
@@ -52,12 +59,13 @@ class AuditService:
             )
             self._merkle_tree.add_leaf(domain_event)
 
-    def ingest_event(self, event: Event) -> Event:
+    async def ingest_event(self, event: Event) -> Event:
         """
         Ingest a new audit event.
         - Verifies event_hash integrity (RFC 8785).
         - Persists to Store.
         - Anchors to Merkle Tree.
+        - Broadcasts to SSE subscribers.
         """
         # 1. Integrity Verification
         import hashlib
@@ -80,6 +88,10 @@ class AuditService:
         # 4. Domain Logic (Merkle)
         self._merkle_tree.add_leaf(event)
 
+        # 5. Broadcast (SSE)
+        if self._broadcaster:
+            await self._broadcaster.publish(event)
+
         return event
 
     def get_root(self) -> RootView:
@@ -89,3 +101,41 @@ class AuditService:
         if not self._merkle_tree.has_event(event_id):
             raise NotFoundError(f"Event {event_id} not found")
         return self._merkle_tree.get_proof(event_id)
+
+    def list_events(self, limit: int = 50, before: str | None = None):
+        """
+        List audit events with pagination.
+        
+        Ordering: DESC (newest first)
+        Pagination: cursor-based using 'before' (strictly older than cursor)
+        
+        Args:
+            limit: Maximum events to return (clamped to 1-200)
+            before: Optional cursor for pagination (strictly older than)
+        
+        Returns:
+            EventPage with items, next_cursor, has_more
+        
+        Raises:
+            ValidationError: If cursor format is invalid
+        """
+        # Validate and clamp limit
+        limit = min(max(1, limit), 200)
+        
+        # Validate cursor if provided
+        if before:
+            # Basic cursor format validation
+            # TODO: Use canonical cursor validator from contracts
+            if not self._is_valid_cursor(before):
+                raise ValidationError(
+                    f"Invalid cursor format: {before}"
+                )
+        
+        # Fetch from store
+        return self._store.list(limit=limit, before=before)
+    
+    def _is_valid_cursor(self, cursor: str) -> bool:
+        """Validate cursor format (UUIDv7-based)."""
+        import re
+        # UUIDv7 cursor format: timestamp_eventid
+        return bool(re.match(r'^[0-9a-f]{8,}_[0-9a-f-]+$', cursor, re.IGNORECASE))

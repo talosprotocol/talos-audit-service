@@ -7,6 +7,8 @@ from talos_sdk.ports.hash import IHashPort
 from talos_sdk.adapters.memory_store import InMemoryAuditStore
 from talos_sdk.adapters.hash import NativeHashAdapter
 
+from src.core.broadcaster import EventBroadcaster
+
 _container = None
 
 
@@ -21,6 +23,7 @@ def bootstrap() -> Container:
     # Register Infrastructure Adapters (Internal)
     container.register(SystemClockAdapter, SystemClockAdapter())
     container.register(UuidIdAdapter, UuidIdAdapter())
+    container.register(EventBroadcaster, EventBroadcaster())
 
     # Register Domain Logic
     hash_port = container.resolve(IHashPort)
@@ -33,6 +36,7 @@ def bootstrap() -> Container:
         merkle_tree=merkle_tree,
         clock=container.resolve(SystemClockAdapter),
         id_gen=container.resolve(UuidIdAdapter),
+        broadcaster=container.resolve(EventBroadcaster),
     )
     container.register(AuditService, audit_service)
 
@@ -49,3 +53,7 @@ def get_app_container() -> Container:
 def get_audit_service() -> AuditService:
     """Direct accessor for FastAPI dependency injection."""
     return get_app_container().resolve(AuditService)
+
+def get_broadcaster() -> EventBroadcaster:
+    """Direct accessor for FastAPI dependency injection."""
+    return get_app_container().resolve(EventBroadcaster)

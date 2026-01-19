@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SERVICE_NAME="talos-audit-service"
 PID_FILE="/tmp/${SERVICE_NAME}.pid"
-PORT="${TALOS_AUDIT_PORT:-8081}"
+PORT="${TALOS_AUDIT_PORT:-8001}"
 
 cd "$REPO_DIR"
 
@@ -14,7 +14,8 @@ if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
 fi
 
 echo "Starting $SERVICE_NAME on port $PORT..."
-uvicorn main:app --port "$PORT" --host 0.0.0.0 > "/tmp/${SERVICE_NAME}.log" 2>&1 &
+export PYTHONPATH="$(cd ../../sdks/python/src && pwd):$PYTHONPATH"
+uvicorn src.adapters.http.main:app --port "$PORT" --host 0.0.0.0 > "/tmp/${SERVICE_NAME}.log" 2>&1 &
 echo $! > "$PID_FILE"
 sleep 2
 
