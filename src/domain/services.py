@@ -3,7 +3,7 @@ from src.domain.models import Event, RootView, ProofView
 from src.domain.merkle import MerkleTree
 from src.domain.errors import ValidationError, NotFoundError, ConflictError
 from src.ports.common import IClockPort, IIdPort
-from talos_sdk.ports.audit_store import IAuditStorePort
+from talos_sdk.ports.audit_store import IAuditStorePort  # type: ignore
 
 
 class AuditService:
