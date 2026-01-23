@@ -89,5 +89,3 @@ docker run -p 8000:8000 talos-audit-service
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
-
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
