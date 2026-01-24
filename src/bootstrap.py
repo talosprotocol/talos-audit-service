@@ -17,7 +17,15 @@ def bootstrap() -> Container:
     container = get_container()
 
     # Register Secondary Ports / Adapters (SDK)
-    container.register(IAuditStorePort, InMemoryAuditStore())
+    import os
+    storage_type = os.getenv("TALOS_STORAGE_TYPE", "memory")
+    
+    if storage_type == "postgres":
+        from src.adapters.postgres_store import PostgresAuditStore
+        container.register(IAuditStorePort, PostgresAuditStore())
+    else:
+        container.register(IAuditStorePort, InMemoryAuditStore())
+
     container.register(IHashPort, NativeHashAdapter())
 
     # Register Infrastructure Adapters (Internal)

@@ -23,6 +23,16 @@ def health_check():
     return {"status": "ok", "service": "audit-service", "timestamp": time.time()}
 
 
+@app.get("/version")
+def version():
+    """Version information"""
+    return {
+        "version": app.version,
+        "git_sha": "unknown",
+        "service": "audit-service"
+    }
+
+
 @app.post("/events")
 async def create_event(event: Event, service: AuditService = Depends(get_audit_service)):
     try:

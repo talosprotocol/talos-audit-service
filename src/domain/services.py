@@ -135,7 +135,7 @@ class AuditService:
         return self._store.list(limit=limit, before=before)
     
     def _is_valid_cursor(self, cursor: str) -> bool:
-        """Validate cursor format (UUIDv7-based)."""
+        """Validate cursor format (Base64 encoded timestamp:id)."""
         import re
-        # UUIDv7 cursor format: timestamp_eventid
-        return bool(re.match(r'^[0-9a-f]{8,}_[0-9a-f-]+$', cursor, re.IGNORECASE))
+        # Base64 regex
+        return bool(re.match(r'^[a-z0-9+/=]+$', cursor, re.IGNORECASE))
