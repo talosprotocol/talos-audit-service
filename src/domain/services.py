@@ -39,25 +39,16 @@ class AuditService:
 
     def _initialize_tree(self):
         """Rebuild tree from store on startup."""
+        import logging
+        logger = logging.getLogger("audit-domain")
+        logger.info("🌳 Starting Merkle Tree initialization from store...")
         page = self._store.list(limit=10000)
-        for event in page.events:
-            # Re-wrap store records to the hardened Domain Model.
-            # We assume store attributes match the model fields or are accessible.
-            domain_event = Event(
-                schema_id=getattr(event, "schema_id", "talos.audit_event"),
-                schema_version=getattr(event, "schema_version", "v1"),
-                event_id=getattr(event, "event_id"),
-                ts=getattr(event, "ts"),
-                request_id=getattr(event, "request_id"),
-                surface_id=getattr(event, "surface_id"),
-                outcome=getattr(event, "outcome"),
-                principal=getattr(event, "principal"),
-                http=getattr(event, "http"),
-                meta=getattr(event, "meta"),
-                resource=getattr(event, "resource", None),
-                event_hash=getattr(event, "event_hash"),
-            )
-            self._merkle_tree.add_leaf(domain_event)
+        logger.info(f"📚 Loaded {len(page.events)} events for tree initialization")
+        
+        # Batch add leaves to avoid O(N^2) rebuild disaster
+        self._merkle_tree.initialize_from_events(page.events)
+        
+        logger.info("✅ Merkle Tree initialization complete")
 
     async def ingest_event(self, event: Event) -> Event:
         """

@@ -7,3 +7,4 @@ httpx
 pytest
 sse-starlette
 psycopg2-binary>=2.9.0
+prometheus-client>=0.19.0

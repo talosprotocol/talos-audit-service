@@ -10,6 +10,26 @@ from src.domain.errors import DomainError, ValidationError, NotFoundError, Confl
 from src.bootstrap import get_audit_service, get_broadcaster
 from src.core.broadcaster import EventBroadcaster
 
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from fastapi.responses import Response
+import logging
+
+logger = logging.getLogger("audit-service")
+
+# Prometheus metrics
+AUDIT_INGEST_REQUESTS = Counter(
+    "audit_ingest_requests_total",
+    "Total audit ingest requests received"
+)
+AUDIT_PERSIST_SUCCESS = Counter(
+    "audit_persist_success_total",
+    "Total audit events successfully persisted"
+)
+AUDIT_PERSIST_FAILURE = Counter(
+    "audit_persist_failure_total",
+    "Total audit events that failed to persist"
+)
+
 
 app = FastAPI(
     title="Talos Audit Service",
@@ -23,6 +43,12 @@ def health_check():
     return {"status": "ok", "service": "audit-service", "timestamp": time.time()}
 
 
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.get("/version")
 def version():
     """Version information"""
@@ -34,15 +60,26 @@ def version():
 
 
 @app.post("/events")
+@app.post("/api/events/ingest")
 async def create_event(event: Event, service: AuditService = Depends(get_audit_service)):
+    AUDIT_INGEST_REQUESTS.inc()
     try:
-        return await service.ingest_event(event)
+        result = await service.ingest_event(event)
+        AUDIT_PERSIST_SUCCESS.inc()
+        return result
     except ValidationError as e:
+        AUDIT_PERSIST_FAILURE.inc()
         raise HTTPException(status_code=400, detail=str(e))
     except ConflictError as e:
+        AUDIT_PERSIST_FAILURE.inc()
         raise HTTPException(status_code=409, detail=str(e))
     except DomainError as e:
+        AUDIT_PERSIST_FAILURE.inc()
         raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        AUDIT_PERSIST_FAILURE.inc()
+        logger.error(f"Unexpected error during event ingestion: {e}")
+        raise HTTPException(status_code=500, detail="Internal ingestion error")
 
 
 @app.get("/api/events")

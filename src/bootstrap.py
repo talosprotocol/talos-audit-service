@@ -12,13 +12,20 @@ from src.core.broadcaster import EventBroadcaster
 _container = None
 
 
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+logger = logging.getLogger("audit-bootstrap")
+
 def bootstrap() -> Container:
     """Initialize the DI container (Composition Root)."""
     container = get_container()
 
     # Register Secondary Ports / Adapters (SDK)
     import os
+    import logging
+    logger = logging.getLogger("audit-bootstrap")
     storage_type = os.getenv("TALOS_STORAGE_TYPE", "memory")
+    logger.info(f"🚀 Initializing Audit Service with storage_type={storage_type}")
     
     if storage_type == "postgres":
         from src.adapters.postgres_store import PostgresAuditStore

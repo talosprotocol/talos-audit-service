@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from talos_sdk.ports.hash import IHashPort
 from src.domain.models import Event, RootView, ProofView, ProofStep
 
@@ -25,6 +25,40 @@ class MerkleTree:
         self._event_id_to_index[event.event_id] = index
         self._rebuild()
         return index
+
+    def initialize_from_events(self, events: List[Any]):
+        """Efficiently initialize tree from a list of historical events."""
+        self._leaves = []
+        self._event_id_to_index = {}
+        
+        for i, event in enumerate(events):
+            # Re-wrap if it's a DB row object
+            if not isinstance(event, Event):
+                # Minimal hydration for hashing
+                from src.domain.models import Event as DomainEvent
+                hydrate = DomainEvent(
+                    schema_id=getattr(event, "schema_id", "talos.audit_event"),
+                    schema_version=getattr(event, "schema_version", "v1"),
+                    event_id=getattr(event, "event_id"),
+                    ts=getattr(event, "ts", "0"),
+                    request_id=getattr(event, "request_id", "0"),
+                    surface_id=getattr(event, "surface_id", "n/a"),
+                    outcome=getattr(event, "outcome", "OK"),
+                    principal=getattr(event, "principal", {}),
+                    http=getattr(event, "http", {}),
+                    meta=getattr(event, "meta", {}),
+                    resource=getattr(event, "resource", None),
+                    event_hash=getattr(event, "event_hash", ""),
+                )
+                data_bytes = str(hydrate).encode("utf-8")
+            else:
+                data_bytes = str(event).encode("utf-8")
+                
+            leaf_hash = self._hash_port.sha256(data_bytes)
+            self._leaves.append(leaf_hash)
+            self._event_id_to_index[getattr(event, "event_id")] = i
+            
+        self._rebuild()
 
     def _rebuild(self):
         """Build the full tree levels from leaves."""

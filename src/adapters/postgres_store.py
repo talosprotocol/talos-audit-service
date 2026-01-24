@@ -52,6 +52,25 @@ class PostgresAuditStore:
             self._ensure_connection()
         return self.conn.cursor(cursor_factory=RealDictCursor)
 
+    def _parse_ts(self, ts_str: str) -> float:
+        """Parse ISO timestamp or return float if already number."""
+        if isinstance(ts_str, (int, float)):
+            return float(ts_str)
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            return dt.timestamp()
+        except:
+            return 0.0
+
+    def _derive_cursor(self, ts: str, event_id: str) -> str:
+        """Derive cursor if missing (Gateway usually handles this, but ingest might not)."""
+        import base64
+        t = self._parse_ts(ts)
+        # Simple base64(timestamp:uuid)
+        payload = f"{t}:{event_id}"
+        return base64.b64encode(payload.encode()).decode()
+
     def append(self, event) -> None:
         try:
             with self._get_cursor() as cur:
@@ -69,24 +88,25 @@ class PostgresAuditStore:
                     ON CONFLICT (event_id) DO NOTHING
                     """,
                     (
-                        event.event_id,
+                        getattr(event, 'event_id'),
                         getattr(event, 'schema_version', '1'),
-                        event.timestamp,
-                        event.cursor,
-                        event.event_type,
-                        event.outcome,
-                        event.session_id,
-                        event.correlation_id,
-                        event.agent_id,
+                        getattr(event, 'timestamp', None) or self._parse_ts(getattr(event, 'ts', '0')),
+                        getattr(event, 'cursor', '') or self._derive_cursor(getattr(event, 'ts', '0'), getattr(event, 'event_id')),
+                        getattr(event, 'event_type', None) or (event.meta.get('event_type') if getattr(event, 'meta', None) else 'UNKNOWN'),
+                        getattr(event, 'outcome', 'UNKNOWN'),
+                        getattr(event, 'session_id', None) or (event.meta.get('session_id') if getattr(event, 'meta', None) else None),
+                        getattr(event, 'correlation_id', None) or (event.meta.get('correlation_id') if getattr(event, 'meta', None) else None) or getattr(event, 'request_id', None),
+                        getattr(event, 'agent_id', None) or (event.principal.get('id') if getattr(event, 'principal', None) else None),
                         getattr(event, 'peer_id', None),
-                        event.tool,
-                        event.method,
-                        event.resource,
-                        Json(event.metadata),
+                        getattr(event, 'tool', None) or (event.resource.get('type') if getattr(event, 'resource', None) else None),
+                        getattr(event, 'method', None) or (event.http.get('path') if getattr(event, 'http', None) else None),
+                        # Fix for can't adapt type 'dict': ensure we get ID string, not the dict itself
+                        getattr(event, 'resource_id', None) or (event.resource.get('id') if getattr(event, 'resource', None) else None) or (str(event.resource) if getattr(event, 'resource', None) else None),
+                        Json(getattr(event, 'metadata', None) or getattr(event, 'meta', {})),
                         Json(getattr(event, 'metrics', {})),
                         Json(getattr(event, 'hashes', {})),
                         Json(getattr(event, 'integrity', {})),
-                        event.integrity_hash
+                        getattr(event, 'integrity_hash', None) or getattr(event, 'event_hash', '')
                     )
                 )
         except Exception as e:
