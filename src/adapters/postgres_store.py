@@ -1,7 +1,7 @@
 import logging
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor, Json
+import psycopg2  # type: ignore
+from psycopg2.extras import RealDictCursor, Json  # type: ignore
 from typing import List, Optional, Protocol, Any
 
 # We define the Protocols here to ensure runtime compatibility 
@@ -121,7 +121,7 @@ class PostgresAuditStore:
             with self._get_cursor() as cur:
                 query = "SELECT * FROM events"
                 where_clauses = []
-                params = []
+                params: List[Any] = []
                 
                 if before:
                     where_clauses.append("cursor < %s")
@@ -164,14 +164,26 @@ class PostgresAuditStore:
         """
         try:
             with self._get_cursor() as cur:
-                # 1. Basic counts
+                # 1. Basic counts and Metric Aggregations
                 cur.execute(
-                    "SELECT COUNT(*) as total, SUM(CASE WHEN outcome = 'OK' THEN 1 ELSE 0 END) as success FROM events WHERE timestamp BETWEEN %s AND %s",
+                    """
+                    SELECT 
+                        COUNT(*) as total, 
+                        SUM(CASE WHEN outcome = 'OK' THEN 1 ELSE 0 END) as success,
+                        SUM(CAST(COALESCE(metrics->>'tokens', '0') AS INTEGER)) as total_tokens,
+                        SUM(CAST(COALESCE(metrics->>'cost_usd', '0') AS FLOAT)) as total_cost,
+                        AVG(CAST(COALESCE(metrics->>'latency_ms', '0') AS FLOAT)) as avg_latency
+                    FROM events 
+                    WHERE timestamp BETWEEN %s AND %s
+                    """,
                     (start_ts, end_ts)
                 )
-                base = cur.fetchone()
-                total = base['total'] or 0
-                success = base['success'] or 0
+                res = cur.fetchone()
+                total = res['total'] or 0
+                success = res['success'] or 0
+                tokens = res['total_tokens'] or 0
+                cost = res['total_cost'] or 0.0
+                latency = res['avg_latency'] or 0.0
                 
                 # 2. Denial reasons
                 cur.execute(
@@ -204,7 +216,10 @@ class PostgresAuditStore:
                     "requests_24h": total,
                     "auth_success_rate": (success / total) if total > 0 else 1.0,
                     "denial_reason_counts": reasons,
-                    "request_volume_series": series
+                    "request_volume_series": series,
+                    "tokens_total": int(tokens),
+                    "cost_usd": float(cost),
+                    "latency_avg_ms": float(latency)
                 }
         except Exception as e:
             logger.error(f"Failed to compute stats: {e}")

@@ -4,6 +4,7 @@ from src.domain.merkle import MerkleTree
 from src.domain.errors import ValidationError, NotFoundError, ConflictError
 from src.ports.common import IClockPort, IIdPort
 from talos_sdk.ports.audit_store import IAuditStorePort  # type: ignore
+from talos_contracts import decode_cursor, CursorBad
 
 
 class AuditService:
@@ -115,18 +116,10 @@ class AuditService:
         
         # Validate cursor if provided
         if before:
-            # Basic cursor format validation
-            # TODO: Use canonical cursor validator from contracts
-            if not self._is_valid_cursor(before):
-                raise ValidationError(
-                    f"Invalid cursor format: {before}"
-                )
+            try:
+                decode_cursor(before)
+            except CursorBad as e:
+                raise ValidationError(f"Invalid cursor: {str(e)}")
         
         # Fetch from store
         return self._store.list(limit=limit, before=before)
-    
-    def _is_valid_cursor(self, cursor: str) -> bool:
-        """Validate cursor format (Base64 encoded timestamp:id)."""
-        import re
-        # Base64 regex
-        return bool(re.match(r'^[a-z0-9+/=]+$', cursor, re.IGNORECASE))
