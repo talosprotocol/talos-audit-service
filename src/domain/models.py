@@ -16,13 +16,14 @@ class Event(BaseModel):
     http: Dict[str, Any]
     meta: Dict[str, Any]
     resource: Optional[Dict[str, Any]] = None
+    hashes: Optional[Dict[str, Any]] = None
     event_hash: str
 
     def __str__(self):
         # Canonical string representation for hashing (RFC 8785)
         import json
 
-        clean = self.model_dump(exclude={"event_hash"})
+        clean = self.model_dump(exclude={"event_hash", "hashes"})
         return json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 

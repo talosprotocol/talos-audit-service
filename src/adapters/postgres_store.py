@@ -52,24 +52,23 @@ class PostgresAuditStore:
             self._ensure_connection()
         return self.conn.cursor(cursor_factory=RealDictCursor)
 
-    def _parse_ts(self, ts_str: str) -> float:
-        """Parse ISO timestamp or return float if already number."""
+    def _parse_ts(self, ts_str: str) -> int:
+        """Parse ISO timestamp or return int if already number."""
         if isinstance(ts_str, (int, float)):
-            return float(ts_str)
+            return int(ts_str)
         try:
             from datetime import datetime
             dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-            return dt.timestamp()
+            return int(dt.timestamp())
         except:
-            return 0.0
+            return 0
 
     def _derive_cursor(self, ts: str, event_id: str) -> str:
         """Derive cursor if missing (Gateway usually handles this, but ingest might not)."""
         import base64
-        t = self._parse_ts(ts)
-        # Simple base64(timestamp:uuid)
+        t = int(self._parse_ts(ts))
         payload = f"{t}:{event_id}"
-        return base64.b64encode(payload.encode()).decode()
+        return base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
 
     def append(self, event) -> None:
         try:
@@ -90,7 +89,7 @@ class PostgresAuditStore:
                     (
                         getattr(event, 'event_id'),
                         getattr(event, 'schema_version', '1'),
-                        getattr(event, 'timestamp', None) or self._parse_ts(getattr(event, 'ts', '0')),
+                        int(getattr(event, 'timestamp', None) or self._parse_ts(getattr(event, 'ts', '0'))),
                         getattr(event, 'cursor', '') or self._derive_cursor(getattr(event, 'ts', '0'), getattr(event, 'event_id')),
                         getattr(event, 'event_type', None) or (event.meta.get('event_type') if getattr(event, 'meta', None) else 'UNKNOWN'),
                         getattr(event, 'outcome', 'UNKNOWN'),
@@ -100,13 +99,15 @@ class PostgresAuditStore:
                         getattr(event, 'peer_id', None),
                         getattr(event, 'tool', None) or (event.resource.get('type') if getattr(event, 'resource', None) else None),
                         getattr(event, 'method', None) or (event.http.get('path') if getattr(event, 'http', None) else None),
-                        # Fix for can't adapt type 'dict': ensure we get ID string, not the dict itself
                         getattr(event, 'resource_id', None) or (event.resource.get('id') if getattr(event, 'resource', None) else None) or (str(event.resource) if getattr(event, 'resource', None) else None),
                         Json(getattr(event, 'metadata', None) or getattr(event, 'meta', {})),
                         Json(getattr(event, 'metrics', {})),
-                        Json(getattr(event, 'hashes', {})),
+                        Json({
+                            **(getattr(event, 'hashes', {}) or {}),
+                            "event_hash": getattr(event, 'event_hash', (getattr(event, 'hashes', {}) or {}).get('event_hash', ''))
+                        }),
                         Json(getattr(event, 'integrity', {})),
-                        getattr(event, 'integrity_hash', None) or getattr(event, 'event_hash', '')
+                        getattr(event, 'integrity_hash', None) or getattr(event, 'event_hash', (getattr(event, 'hashes', {}) or {}).get('event_hash', ''))
                     )
                 )
         except Exception as e:
