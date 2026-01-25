@@ -23,8 +23,14 @@ def bootstrap() -> Container:
     # Register Secondary Ports / Adapters (SDK)
     import os
     import logging
+    from src.config import settings
+
     logger = logging.getLogger("audit-bootstrap")
-    storage_type = os.getenv("TALOS_STORAGE_TYPE", "memory")
+    
+    # Audit Startup Logs
+    logger.info(f"Startup Config | Contracts: {settings.contracts_version} | Config: {settings.config_version} | Digest: {settings.config_digest[:8]}...")
+    
+    storage_type = settings.storage_type
     logger.info(f"🚀 Initializing Audit Service with storage_type={storage_type}")
     
     if storage_type == "postgres":
