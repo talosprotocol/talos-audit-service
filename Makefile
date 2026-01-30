@@ -1,7 +1,7 @@
 # talos-audit-service Makefile
 # Audit Log Aggregator Service
 
-.PHONY: install build test lint clean start stop status docker-build
+.PHONY: install build test lint clean start stop status docker-build typecheck
 
 SERVICE_NAME := talos-audit-service
 PID_FILE := /tmp/$(SERVICE_NAME).pid
@@ -48,3 +48,6 @@ status:
 clean:
 	rm -rf *.egg-info build dist .venv venv .pytest_cache .ruff_cache __pycache__
 	find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+typecheck:
+	@echo "Typecheck not implemented for $(SERVICE_NAME)"
