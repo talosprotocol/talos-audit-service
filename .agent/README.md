@@ -1,4 +1,5 @@
 # Agent workspace: services/audit
+> **Project**: services/audit
 
 This folder contains agent-facing context, tasks, workflows, and planning artifacts for this submodule.
 
