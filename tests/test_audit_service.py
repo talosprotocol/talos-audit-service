@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 from unittest.mock import MagicMock
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
@@ -46,15 +47,12 @@ class TestAuditService(unittest.TestCase):
         )
         # Update hash
         import hashlib
-        import json
-
-        clean = event_obj.model_dump(exclude={"event_hash"})
-        canonical = json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        canonical = str(event_obj)
         event_obj = event_obj.model_copy(
             update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
         )
 
-        event = self.service.ingest_event(event_obj)
+        event = asyncio.run(self.service.ingest_event(event_obj))
 
         self.assertEqual(event.event_id, "e-1")
         self.assertEqual(event.outcome, "success")
@@ -74,20 +72,17 @@ class TestAuditService(unittest.TestCase):
         )
         # Update hash
         import hashlib
-        import json
-
-        clean = event_obj.model_dump(exclude={"event_hash"})
-        canonical = json.dumps(clean, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        canonical = str(event_obj)
         event_obj = event_obj.model_copy(
             update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
         )
 
         # First ingest
-        self.service.ingest_event(event_obj)
+        asyncio.run(self.service.ingest_event(event_obj))
 
         # Second ingest with same ID should fail
         with self.assertRaises(ConflictError):
-            self.service.ingest_event(event_obj)
+            asyncio.run(self.service.ingest_event(event_obj))
 
     def test_get_proof_not_found(self):
         with self.assertRaises(NotFoundError):
@@ -116,10 +111,10 @@ class TestAuditService(unittest.TestCase):
             return e
 
         # Ingest 3 events
-        self.service.ingest_event(build_valid("e1"))
+        asyncio.run(self.service.ingest_event(build_valid("e1")))
         id2 = build_valid("e2").event_id
-        self.service.ingest_event(build_valid("e2"))
-        self.service.ingest_event(build_valid("e3"))
+        asyncio.run(self.service.ingest_event(build_valid("e2")))
+        asyncio.run(self.service.ingest_event(build_valid("e3")))
 
         self.service.get_root()
         path2 = self.service.get_proof(id2).path

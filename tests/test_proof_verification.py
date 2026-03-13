@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
 from src.domain.models import Event
@@ -59,7 +60,7 @@ class TestProofVerification(unittest.TestCase):
             e = e.model_copy(
                 update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
             )
-            event = self.service.ingest_event(e)
+            event = asyncio.run(self.service.ingest_event(e))
             ids.append((event.event_id, str(event)))
 
         root = self.service.get_root().root
