@@ -30,12 +30,13 @@ class MerkleTree:
         """Efficiently initialize tree from a list of historical events."""
         self._leaves = []
         self._event_id_to_index = {}
-        
+
         for i, event in enumerate(events):
             # Re-wrap if it's a DB row object
             if not isinstance(event, Event):
                 # Minimal hydration for hashing
                 from src.domain.models import Event as DomainEvent
+
                 hydrate = DomainEvent(
                     schema_id=getattr(event, "schema_id", "talos.audit_event"),
                     schema_version=getattr(event, "schema_version", "v1"),
@@ -53,11 +54,11 @@ class MerkleTree:
                 data_bytes = str(hydrate).encode("utf-8")
             else:
                 data_bytes = str(event).encode("utf-8")
-                
+
             leaf_hash = self._hash_port.sha256(data_bytes)
             self._leaves.append(leaf_hash)
             self._event_id_to_index[getattr(event, "event_id")] = i
-            
+
         self._rebuild()
 
     def _rebuild(self):

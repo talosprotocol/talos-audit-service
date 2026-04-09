@@ -1,3 +1,4 @@
+import logging
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
 from src.ports.common import SystemClockAdapter, UuidIdAdapter
@@ -11,30 +12,30 @@ from src.core.broadcaster import EventBroadcaster
 
 _container = None
 
-
-import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("audit-bootstrap")
+
 
 def bootstrap() -> Container:
     """Initialize the DI container (Composition Root)."""
     container = get_container()
 
     # Register Secondary Ports / Adapters (SDK)
-    import os
-    import logging
     from src.config import settings
 
     logger = logging.getLogger("audit-bootstrap")
-    
+
     # Audit Startup Logs
-    logger.info(f"Startup Config | Contracts: {settings.contracts_version} | Config: {settings.config_version} | Digest: {settings.config_digest[:8]}...")
-    
+    logger.info(
+        f"Startup Config | Contracts: {settings.contracts_version} | Config: {settings.config_version} | Digest: {settings.config_digest[:8]}..."
+    )
+
     storage_type = settings.storage_type
     logger.info(f"🚀 Initializing Audit Service with storage_type={storage_type}")
-    
+
     if storage_type == "postgres":
         from src.adapters.postgres_store import PostgresAuditStore
+
         container.register(IAuditStorePort, PostgresAuditStore())
     else:
         container.register(IAuditStorePort, InMemoryAuditStore())
@@ -74,6 +75,7 @@ def get_app_container() -> Container:
 def get_audit_service() -> AuditService:
     """Direct accessor for FastAPI dependency injection."""
     return get_app_container().resolve(AuditService)
+
 
 def get_broadcaster() -> EventBroadcaster:
     """Direct accessor for FastAPI dependency injection."""

@@ -2,9 +2,25 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SERVICE_NAME="talos-audit-service"
 PID_FILE="/tmp/${SERVICE_NAME}.pid"
-PORT="${TALOS_AUDIT_PORT:-8001}"
+PORT="${TALOS_AUDIT_PORT:-8002}"
+HOST="${TALOS_BIND_HOST:-127.0.0.1}"
+
+source_env_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        set -a
+        . "$file"
+        set +a
+    fi
+}
+
+source_env_file "$ROOT_DIR/.env"
+source_env_file "$ROOT_DIR/.env.local"
+source_env_file "$REPO_DIR/.env"
+source_env_file "$REPO_DIR/.env.local"
 
 cd "$REPO_DIR"
 
@@ -14,8 +30,8 @@ if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
 fi
 
 echo "Starting $SERVICE_NAME on port $PORT..."
-export PYTHONPATH="$(cd ../../sdks/python/src && pwd):$PYTHONPATH"
-uvicorn src.adapters.http.main:app --port "$PORT" --host 0.0.0.0 > "/tmp/${SERVICE_NAME}.log" 2>&1 &
+export PYTHONPATH="$(cd ../../sdks/python/src && pwd):${PYTHONPATH:-}"
+uvicorn src.adapters.http.main:app --port "$PORT" --host "$HOST" > "/tmp/${SERVICE_NAME}.log" 2>&1 &
 echo $! > "$PID_FILE"
 sleep 2
 

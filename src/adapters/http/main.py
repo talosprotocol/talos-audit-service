@@ -10,7 +10,7 @@ from src.domain.errors import DomainError, ValidationError, NotFoundError, Confl
 from src.bootstrap import get_audit_service, get_broadcaster
 from src.core.broadcaster import EventBroadcaster
 
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from fastapi.responses import Response
 import logging
 
@@ -18,16 +18,13 @@ logger = logging.getLogger("audit-service")
 
 # Prometheus metrics
 AUDIT_INGEST_REQUESTS = Counter(
-    "audit_ingest_requests_total",
-    "Total audit ingest requests received"
+    "audit_ingest_requests_total", "Total audit ingest requests received"
 )
 AUDIT_PERSIST_SUCCESS = Counter(
-    "audit_persist_success_total",
-    "Total audit events successfully persisted"
+    "audit_persist_success_total", "Total audit events successfully persisted"
 )
 AUDIT_PERSIST_FAILURE = Counter(
-    "audit_persist_failure_total",
-    "Total audit events that failed to persist"
+    "audit_persist_failure_total", "Total audit events that failed to persist"
 )
 
 
@@ -52,11 +49,7 @@ async def metrics():
 @app.get("/version")
 def version():
     """Version information"""
-    return {
-        "version": app.version,
-        "git_sha": "unknown",
-        "service": "audit-service"
-    }
+    return {"version": app.version, "git_sha": "unknown", "service": "audit-service"}
 
 
 @app.post("/events")
@@ -84,52 +77,46 @@ async def create_event(event: Event, service: AuditService = Depends(get_audit_s
 
 @app.get("/api/events")
 async def list_events(
-    limit: int = 50,
-    before: str | None = None,
-    service: AuditService = Depends(get_audit_service)
+    limit: int = 50, before: str | None = None, service: AuditService = Depends(get_audit_service)
 ):
     """
     Paginated JSON list of audit events.
-    
+
     Ordering: DESC (newest first)
     Pagination: cursor-based, 'before' means strictly older than cursor
-    
+
     Query params:
         limit: Max events to return (default 50, max 200)
         before: Optional cursor for pagination
-    
+
     Returns:
         {
             "items": [AuditEvent, ...],
             "next_cursor": "string|null",
             "has_more": bool
         }
-    
+
     Errors:
         400: Invalid cursor format (TALOS_INVALID_CURSOR)
     """
     try:
         page = service.list_events(limit=limit, before=before)
-        
+
         # Convert events to dict
         items = [
             event.model_dump() if hasattr(event, "model_dump") else event.dict()
             for event in page.events
         ]
-        
+
         # Stable response shape - always include all keys
         return {
             "items": items,
             "next_cursor": getattr(page, "next_cursor", None),
-            "has_more": getattr(page, "has_more", False)
+            "has_more": getattr(page, "has_more", False),
         }
     except ValidationError as e:
         raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "TALOS_INVALID_CURSOR",
-                "message": str(e)
-            }
+            status_code=400, detail={"code": "TALOS_INVALID_CURSOR", "message": str(e)}
         )
 
 
@@ -137,34 +124,35 @@ async def list_events(
 async def stream_events(request: Request, broadcaster: EventBroadcaster = Depends(get_broadcaster)):
     """
     Stream audit events via SSE (Server-Sent Events).
-    
+
     Spec-compliant implementation:
     - First event is always 'meta' with version and connected_at
-    - Heartbeat every 30s with empty data payload  
+    - Heartbeat every 30s with empty data payload
     - Audit events as 'audit_event'
     - Errors as 'error' event followed by stream termination
     """
+
     async def event_generator():
         try:
             # 1. Send meta event (MUST be first)
             from datetime import datetime, timezone
+
             connected_at = datetime.now(timezone.utc).isoformat()
             yield {
                 "event": "meta",
-                "data": json.dumps({
-                    "version": "1",
-                    "connected_at": connected_at
-                })
+                "data": json.dumps({"version": "1", "connected_at": connected_at}),
             }
-            
+
             # 2. Stream events with heartbeat
             async for event in broadcaster.subscribe():
                 # Convert Pydantic model to dict/json
                 yield {
                     "event": "audit_event",
-                    "data": event.model_dump_json() if hasattr(event, "model_dump_json") else event.json()
+                    "data": event.model_dump_json()
+                    if hasattr(event, "model_dump_json")
+                    else event.json(),
                 }
-                
+
         except asyncio.CancelledError:
             # Client disconnected - normal cleanup via cancellation
             pass
@@ -173,10 +161,7 @@ async def stream_events(request: Request, broadcaster: EventBroadcaster = Depend
             logger.error(f"SSE internal error: {e}")
             yield {
                 "event": "error",
-                "data": json.dumps({
-                    "code": "TALOS_SSE_INTERNAL",
-                    "message": str(e)
-                })
+                "data": json.dumps({"code": "TALOS_SSE_INTERNAL", "message": str(e)}),
             }
 
     return EventSourceResponse(event_generator())

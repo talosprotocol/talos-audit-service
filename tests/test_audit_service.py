@@ -1,5 +1,4 @@
 import unittest
-import asyncio
 from unittest.mock import MagicMock
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
@@ -10,7 +9,7 @@ from talos_sdk.ports.audit_store import IAuditStorePort
 from talos_sdk.ports.hash import IHashPort
 
 
-class TestAuditService(unittest.TestCase):
+class TestAuditService(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.mock_store = MagicMock(spec=IAuditStorePort)
         self.mock_store.list.return_value = MagicMock(events=[])
@@ -33,8 +32,10 @@ class TestAuditService(unittest.TestCase):
             id_gen=self.mock_id_gen,
         )
 
-    def test_ingest_event_success(self):
+    async def test_ingest_event_success(self):
         event_obj = Event(
+            schema_id="talos.audit_event",
+            schema_version="v1",
             event_id="e-1",
             ts="2026-01-11T18:23:45.123Z",
             request_id="req-1",
@@ -43,6 +44,7 @@ class TestAuditService(unittest.TestCase):
             principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
             http={"method": "GET", "path": "/v1/test", "status_code": 200},
             meta={},
+            resource=None,
             event_hash="",
         )
         # Update hash
@@ -52,14 +54,16 @@ class TestAuditService(unittest.TestCase):
             update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
         )
 
-        event = asyncio.run(self.service.ingest_event(event_obj))
+        event = await self.service.ingest_event(event_obj)
 
         self.assertEqual(event.event_id, "e-1")
         self.assertEqual(event.outcome, "success")
         self.mock_store.append.assert_called_once()
 
-    def test_idempotency_conflict(self):
+    async def test_idempotency_conflict(self):
         event_obj = Event(
+            schema_id="talos.audit_event",
+            schema_version="v1",
             event_id="unique-1",
             ts="2026-01-11T18:23:45.123Z",
             request_id="req-1",
@@ -68,6 +72,7 @@ class TestAuditService(unittest.TestCase):
             principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
             http={"method": "GET", "path": "/v1/test", "status_code": 200},
             meta={},
+            resource=None,
             event_hash="",
         )
         # Update hash
@@ -78,17 +83,17 @@ class TestAuditService(unittest.TestCase):
         )
 
         # First ingest
-        asyncio.run(self.service.ingest_event(event_obj))
+        await self.service.ingest_event(event_obj)
 
         # Second ingest with same ID should fail
         with self.assertRaises(ConflictError):
-            asyncio.run(self.service.ingest_event(event_obj))
+            await self.service.ingest_event(event_obj)
 
     def test_get_proof_not_found(self):
         with self.assertRaises(NotFoundError):
             self.service.get_proof("missing-id")
 
-    def test_snapshot_consistency(self):
+    async def test_snapshot_consistency(self):
         def build_valid(eid):
             import hashlib
 
@@ -111,24 +116,16 @@ class TestAuditService(unittest.TestCase):
             return e
 
         # Ingest 3 events
-        asyncio.run(self.service.ingest_event(build_valid("e1")))
+        await self.service.ingest_event(build_valid("e1"))
         id2 = build_valid("e2").event_id
-        asyncio.run(self.service.ingest_event(build_valid("e2")))
-        asyncio.run(self.service.ingest_event(build_valid("e3")))
+        await self.service.ingest_event(build_valid("e2"))
+        await self.service.ingest_event(build_valid("e3"))
 
         self.service.get_root()
         path2 = self.service.get_proof(id2).path
 
         # Verify proof locally against root_snap logic
-        # Proof for e2 (index 1) in [e1, e2, e3]
-        # Leaves: H1, H2, H3
-        # Level 1: H12=H(H1+H2), H33=H(H3+H3)
-        # Root: H(H12+H33)
-        # Proof for H2: [H1, H33]
-
         self.assertEqual(len(path2), 2)
-        # We don't need to rebuild the whole verification logic here,
-        # but asserting that the proof is returned and root exists.
         self.assertTrue(all(p.hash for p in path2))
 
 

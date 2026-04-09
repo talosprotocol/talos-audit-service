@@ -1,5 +1,4 @@
 import unittest
-import asyncio
 from src.domain.services import AuditService
 from src.domain.merkle import MerkleTree
 from src.domain.models import Event
@@ -9,7 +8,7 @@ from talos_sdk.adapters.memory_store import InMemoryAuditStore
 import hashlib
 
 
-class TestProofVerification(unittest.TestCase):
+class TestProofVerification(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.hash_port = NativeHashAdapter()
         self.store = InMemoryAuditStore()
@@ -21,31 +20,13 @@ class TestProofVerification(unittest.TestCase):
             id_gen=UuidIdAdapter(),
         )
 
-    def verify_merkle_proof(self, root_hex: str, leaf_data: str, proof_hex_list: list) -> bool:
-        """
-        Independent implementation of Merkle proof verification.
-        """
-        self.hash_port.sha256(leaf_data.encode("utf-8"))
-
-        # We need to know if we are left or right sibling at each step.
-        # However, our simple tree duplicates last leaf if odd.
-        # This makes proof verification tricky without index or side info.
-        # In our implementation, we determine side by index % 2.
-        # But wait, the proof list just contains siblings.
-        # Let's see how MerkleTree handles it.
-        # It uses: is_right_node = index % 2 == 1 -> sibling is index - 1.
-        # So we need the original index to verify.
-
-        # Let's simplified: If we don't have index, we'd have to try both sides
-        # or have the proof include 'dir'.
-        # Since our ProofView doesn't include 'dir', let's fix it or use a helper that knows the index.
-        return False  # Placeholder for now, I'll update the logic below.
-
-    def test_proof_integrity(self):
+    async def test_proof_integrity(self):
         # Ingest events and verify proofs for each
         ids = []
         for i in range(5):
             e = Event(
+                schema_id="talos.audit_event",
+                schema_version="v1",
                 event_id=f"e-{i}",
                 ts="2026-01-11T18:23:45.123Z",
                 request_id=f"req-{i}",
@@ -54,13 +35,14 @@ class TestProofVerification(unittest.TestCase):
                 principal={"auth_mode": "bearer", "principal_id": f"p-{i}", "team_id": "t-1"},
                 http={"method": "GET", "path": "/v1/test", "status_code": 200},
                 meta={},
+                resource=None,
                 event_hash="",
             )
             canonical = str(e)
             e = e.model_copy(
                 update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
             )
-            event = asyncio.run(self.service.ingest_event(e))
+            event = await self.service.ingest_event(e)
             ids.append((event.event_id, str(event)))
 
         root = self.service.get_root().root

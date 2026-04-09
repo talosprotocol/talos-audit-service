@@ -43,3 +43,20 @@ class ProofView(BaseModel):
     height: int
     path: List[ProofStep]
     index: int
+
+
+class Anchor(BaseModel):
+    anchor_id: str
+    root: str
+    chain: str
+    tx_hash: str
+    ts: str
+    status: str = "confirmed"
+
+
+class AnchorView(BaseModel):
+    anchor_id: str
+    root: str
+    chain: str
+    tx_hash: str
+    ts: str
