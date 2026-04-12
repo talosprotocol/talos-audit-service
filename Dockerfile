@@ -52,12 +52,12 @@ RUN mkdir -p /tmp /var/run && chown -R 1001:1001 /tmp /var/run
 
 USER 1001:1001
 
-EXPOSE 8002
+EXPOSE 8001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')" || exit 1
+  CMD python -c "import urllib.request, os; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\", 8001)}/health')" || exit 1
 
-CMD ["uvicorn", "src.adapters.http.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["sh", "-c", "uvicorn src.adapters.http.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
 
 LABEL org.opencontainers.image.source="https://github.com/talosprotocol/talos" \
       org.opencontainers.image.revision="${GIT_SHA}" \
