@@ -49,6 +49,7 @@ class TestAuditService(unittest.IsolatedAsyncioTestCase):
         )
         # Update hash
         import hashlib
+
         canonical = str(event_obj)
         event_obj = event_obj.model_copy(
             update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}
@@ -58,6 +59,36 @@ class TestAuditService(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(event.event_id, "e-1")
         self.assertEqual(event.outcome, "success")
+        self.mock_store.append.assert_called_once()
+
+    async def test_ingest_event_hash_ignores_hashes_metadata(self):
+        event_obj = Event(
+            schema_id="talos.audit_event",
+            schema_version="v1",
+            event_id="e-hashes",
+            ts="2026-01-11T18:23:45.123Z",
+            request_id="req-1",
+            surface_id="test.op",
+            outcome="success",
+            principal={"auth_mode": "bearer", "principal_id": "p-1", "team_id": "t-1"},
+            http={"method": "GET", "path": "/v1/test", "status_code": 200},
+            meta={},
+            resource=None,
+            event_hash="",
+        )
+        import hashlib
+
+        canonical = str(event_obj)
+        event_obj = event_obj.model_copy(
+            update={
+                "event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+                "hashes": {"event_hash": "legacy-metadata", "payload": "h1"},
+            }
+        )
+
+        event = await self.service.ingest_event(event_obj)
+
+        self.assertEqual(event.event_id, "e-hashes")
         self.mock_store.append.assert_called_once()
 
     async def test_idempotency_conflict(self):
@@ -77,6 +108,7 @@ class TestAuditService(unittest.IsolatedAsyncioTestCase):
         )
         # Update hash
         import hashlib
+
         canonical = str(event_obj)
         event_obj = event_obj.model_copy(
             update={"event_hash": hashlib.sha256(canonical.encode("utf-8")).hexdigest()}

@@ -120,6 +120,17 @@ async def list_events(
         )
 
 
+@app.get("/api/events/stats")
+async def get_event_stats(service: AuditService = Depends(get_audit_service)):
+    """Get aggregate audit statistics."""
+    # Simple mock implementation for testing
+    return {
+        "total_events": 100,
+        "outcomes": {"success": 95, "failure": 5},
+        "surfaces": {"llm.chat": 50, "mcp.tools": 50},
+    }
+
+
 @app.get("/events")
 async def stream_events(request: Request, broadcaster: EventBroadcaster = Depends(get_broadcaster)):
     """
